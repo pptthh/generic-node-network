@@ -7,6 +7,10 @@
   "scripts": {
     "start": "bun server.ts",
     "dev": "bun server.ts",
+    "gnn:a": "bun server.ts --node-id=node-a --log-level=info",
+    "gnn:b": "bun server.ts --node-id=node-b --log-level=info",
+    "gnn:c": "bun server.ts --node-id=node-c --log-level=info",
+    "gnn:abc": "bun run gnn:a & bun run gnn:b & bun run gnn:c",
     "build": "bun next build",
     "test": "vitest run",
     "test:watch": "vitest",

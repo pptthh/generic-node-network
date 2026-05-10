@@ -40,7 +40,9 @@
     ".next-node-b/types/**/*.ts",
     ".next-node-b/dev/types/**/*.ts",
     ".next-node-a/types/**/*.ts",
-    ".next-node-a/dev/types/**/*.ts"
+    ".next-node-a/dev/types/**/*.ts",
+    ".next-node-c/types/**/*.ts",
+    ".next-node-c/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

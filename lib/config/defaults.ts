@@ -1,18 +1,9 @@
 import type { NodeConfig } from '../types/config.js';
 
-function nodeIdToPortOffset(nodeId: string): number {
-  let hash = 0;
-  for (let i = 0; i < nodeId.length; i++) {
-    hash = ((hash << 5) - hash + nodeId.charCodeAt(i)) & 0x7fffffff;
-  }
-  return hash % 900;
-}
-
-export function getDefaults(nodeId?: string): Omit<NodeConfig, 'nodeId' | 'apiToken' | 'configFile' | 'dbPath'> {
-  const offset = nodeId ? nodeIdToPortOffset(nodeId) : 111;
+export function getDefaults(): Omit<NodeConfig, 'nodeId' | 'apiToken' | 'configFile' | 'dbPath'> {
   return {
-    apiPort: 25000 + offset,
-    p2pPort: 28000 + offset,
+    apiPort: 25111,
+    p2pPort: 28111,
     bootstrapPeers: [],
     logging: {
       level: 'error',

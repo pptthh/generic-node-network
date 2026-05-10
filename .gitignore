@@ -1,6 +1,7 @@
 # dependencies (bun install)
 node_modules
 .next/
+.next-*/
 gnn-data-*/
 gnn-conf-*.json
 playwright-report/

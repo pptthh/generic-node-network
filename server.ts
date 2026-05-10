@@ -61,6 +61,7 @@ async function main() {
   wsManager.broadcast({ type: 'node_restarted', uptime: 0 });
 
   // 8. Initialize Next.js app
+  process.env.GNN_NODE_ID = config.nodeId;
   const app = next({ dev: isDev, hostname: 'localhost', port: config.apiPort });
   const handle = app.getRequestHandler();
 

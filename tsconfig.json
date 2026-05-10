@@ -35,16 +35,15 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
+    ".next-a3c6622e-0302-4ac4-a255-54739fc33aca/types/**/*.ts",
+    ".next-a3c6622e-0302-4ac4-a255-54739fc33aca/dev/types/**/*.ts",
+    ".next/node-c/types/**/*.ts",
+    ".next/node-c/dev/types/**/*.ts",
     ".next-node-b/types/**/*.ts",
-    ".next-node-b/dev/types/**/*.ts",
-    ".next-node-a/types/**/*.ts",
-    ".next-node-a/dev/types/**/*.ts",
-    ".next-node-c/types/**/*.ts",
-    ".next-node-c/dev/types/**/*.ts"
+    ".next-node-b/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".next-*"
   ]
 }

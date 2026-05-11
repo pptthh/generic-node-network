@@ -135,10 +135,11 @@ export async function loadConfig(): Promise<NodeConfig> {
 
   const cliConfig = parseCLIArgs();
   const envConfig = loadEnv();
-  const defaults = getDefaults();
 
-  // Resolve nodeId first (needed for default paths)
+  // Resolve nodeId first (needed for default paths and port derivation)
   const nodeId = (cliConfig.nodeId ?? envConfig.nodeId ?? uuidv4()) as string;
+
+  const defaults = getDefaults(nodeId);
 
   const defaultConfigFile = `./gnn-conf-${nodeId}.json`;
   const defaultDbPath = `./gnn-data-${nodeId}`;

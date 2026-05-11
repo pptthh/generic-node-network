@@ -5,10 +5,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "clean": "rm -rf ./.next/ tmp/ && git checkout tsconfig.json && echo 'tsconfig.json' changes reverted",
+    "clean": "rm -rf ./.next/ tmp/ & rm next-env.d.ts && git checkout tsconfig.json && echo '\n\ttsconfig.json changes reverted !!!!!!!!!!!!!!\n'",
     "start": "bun server.ts",
     "dev": "bun server.ts",
-    "test-start": "bun clean && bun gnnn & sleep 7 && pkill bun && sleep && bun clean",
+    "test-start": "bun gnnn & sleep 7 && pkill bun && sleep && bun clean",
     "gnn:a": "bun server.ts --node-id=node-a --log-level=info",
     "gnn:b": "bun server.ts --node-id=node-b --log-level=error",
     "gnn:c": "bun server.ts --node-id=node-c --log-level=error",

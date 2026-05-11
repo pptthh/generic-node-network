@@ -38,5 +38,5 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Finder (MacOS) folder config
 .DS_Store
 
-# first state is stored, but no updates
-tsconfig.json
+# next environment variable files
+next-env.d.ts

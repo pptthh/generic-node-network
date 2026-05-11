@@ -16,7 +16,7 @@ export default defineConfig({
   ],
   webServer: {
     command: 'bun server.ts --node-id=e2e-test --api-port=25111',
-    url: 'http://localhost:25111/health',
+    url: 'http://localhost:25111/api/health',
     reuseExistingServer: !process.env.CI,
     timeout: 30000,
   },

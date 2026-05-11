@@ -16,9 +16,9 @@ test.describe('Dashboard', () => {
   test('should show navigation links', async ({ page }) => {
     await page.goto('/dashboard');
     await expect(page.locator('text=GNN')).toBeVisible();
-    await expect(page.locator('text=Peers')).toBeVisible();
-    await expect(page.locator('text=Messages')).toBeVisible();
-    await expect(page.locator('text=Publish')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Peers' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Messages' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Publish' })).toBeVisible();
   });
 
   test('should navigate to peers page', async ({ page }) => {

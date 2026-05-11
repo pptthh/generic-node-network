@@ -98,13 +98,14 @@ async function main() {
 
     const { WebSocketServer } = require('ws');
     const wss = new WebSocketServer({ noServer: true });
-
+    const clientId = uuidv4();
+    logger.debug(`WebSocket client ${process.env.GNN_NODE_ID} wss.handleUpgrade: ${clientId}`);
     wss.handleUpgrade(req, socket, head, (ws: {
       on: (event: string, handler: (data?: unknown) => void) => void;
       send: (data: string) => void;
       readyState: number;
     }) => {
-      const clientId = uuidv4();
+      logger.debug(`WebSocket client ${process.env.GNN_NODE_ID} connecting: ${clientId}`);
 
       wsManager.addClient(clientId, {
         id: clientId,

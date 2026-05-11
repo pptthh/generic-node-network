@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "clean": "rm -rf ./.next/ tmp/ & rm next-env.d.ts && git checkout tsconfig.json && echo '\n\ttsconfig.json changes reverted !!!!!!!!!!!!!!\n'",
+    "clean": "rm -rf tmp/ ./.next/ && rm -f next-env.d.ts && mkdir ./tmp && git checkout tsconfig.json && echo '\n\ttsconfig.json changes reverted !!!!!!!!!!!!!!\n'",
     "start": "bun server.ts",
     "dev": "bun server.ts",
     "test-start": "bun gnnn & sleep 7 && pkill bun && sleep && bun clean",

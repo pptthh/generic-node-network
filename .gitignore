@@ -2,6 +2,7 @@
 node_modules
 .next/
 .gnn-*/
+gnn-*/
 gnn-conf-*.json
 playwright-report/
 test-results/

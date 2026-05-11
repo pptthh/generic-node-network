@@ -1,0 +1,1 @@
+- Use for default database path: `./.next/${nodeId}/dev/data-base`;

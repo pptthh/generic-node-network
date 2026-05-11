@@ -1,4 +1,4 @@
-import type { Peer } from '../../../lib/types/peers.js';
+import type { Peer } from '../../../lib/types/peers';
 
 interface PeerListProps {
   peers: Peer[];

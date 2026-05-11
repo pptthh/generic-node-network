@@ -10,17 +10,20 @@ export interface NodeContext {
   config: NodeConfig;
 }
 
-let _ctx: NodeContext | null = null;
+declare global {
+  // eslint-disable-next-line no-var
+  var __gnnNodeContext: NodeContext | undefined;
+}
 
 export function setNodeContext(ctx: NodeContext): void {
-  _ctx = ctx;
+  globalThis.__gnnNodeContext = ctx;
 }
 
 export function getNodeContext(): NodeContext {
-  if (!_ctx) throw new Error('Node context not initialized');
-  return _ctx;
+  if (!globalThis.__gnnNodeContext) throw new Error('Node context not initialized');
+  return globalThis.__gnnNodeContext;
 }
 
 export function isContextReady(): boolean {
-  return _ctx !== null && _ctx.node.isRunning();
+  return !!globalThis.__gnnNodeContext?.node.isRunning();
 }

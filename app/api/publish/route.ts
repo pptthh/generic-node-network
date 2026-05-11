@@ -1,8 +1,8 @@
-import { withAuth, errorResponse } from '../../../lib/api/middleware.js';
-import { getNodeContext } from '../../../lib/api/handlers.js';
-import { isPayloadTooLarge, getPayloadSize } from '../../../lib/utils/validation.js';
-import { nowIso } from '../../../lib/utils/time.js';
-import type { PublishedMessage } from '../../../lib/types/messages.js';
+import { withAuth, errorResponse } from '../../../lib/api/middleware';
+import { getNodeContext } from '../../../lib/api/handlers';
+import { isPayloadTooLarge, getPayloadSize } from '../../../lib/utils/validation';
+import { nowIso } from '../../../lib/utils/time';
+import type { PublishedMessage } from '../../../lib/types/messages';
 
 export async function POST(req: Request): Promise<Response> {
   return withAuth(req, async () => {

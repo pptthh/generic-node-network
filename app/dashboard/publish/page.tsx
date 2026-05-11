@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
-import PublishForm from '../components/publish-form.js';
-import { getNodeContext, isContextReady } from '../../../lib/api/handlers.js';
+import PublishForm from '../components/publish-form';
+import { getNodeContext, isContextReady } from '../../../lib/api/handlers';
 
 export const dynamic = 'force-dynamic';
 

@@ -1,22 +1,25 @@
 import type { NodeConfig } from '../types/config.js';
 import { logger } from '../utils/logger.js';
 
-let _config: NodeConfig | null = null;
+declare global {
+  // eslint-disable-next-line no-var
+  var __gnnApiConfig: NodeConfig | undefined;
+}
 
 export function setApiConfig(config: NodeConfig): void {
-  _config = config;
+  globalThis.__gnnApiConfig = config;
 }
 
 export function getApiConfig(): NodeConfig {
-  if (!_config) throw new Error('API config not initialized');
-  return _config;
+  if (!globalThis.__gnnApiConfig) throw new Error('API config not initialized');
+  return globalThis.__gnnApiConfig;
 }
 
 export function authenticateRequest(req: Request): boolean {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) return false;
   const token = authHeader.slice(7);
-  return token === _config?.apiToken;
+  return token === globalThis.__gnnApiConfig?.apiToken;
 }
 
 export function unauthorizedResponse(): Response {

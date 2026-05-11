@@ -80,12 +80,15 @@ export class WebSocketManager {
   }
 }
 
-let _wsManager: WebSocketManager | null = null;
+declare global {
+  // eslint-disable-next-line no-var
+  var __gnnWsManager: WebSocketManager | undefined;
+}
 
 export function getWebSocketManager(): WebSocketManager | null {
-  return _wsManager;
+  return globalThis.__gnnWsManager ?? null;
 }
 
 export function setWebSocketManager(manager: WebSocketManager): void {
-  _wsManager = manager;
+  globalThis.__gnnWsManager = manager;
 }

@@ -1,5 +1,5 @@
-import { getNodeContext, isContextReady } from '../../../lib/api/handlers.js';
-import { nowMs, uptimeSeconds } from '../../../lib/utils/time.js';
+import { getNodeContext, isContextReady } from '../../../lib/api/handlers';
+import { nowMs, uptimeSeconds } from '../../../lib/utils/time';
 
 export async function GET(): Promise<Response> {
   if (!isContextReady()) {

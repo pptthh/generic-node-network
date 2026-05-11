@@ -1,4 +1,4 @@
-import { getNodeContext, isContextReady } from '../../../lib/api/handlers.js';
+import { getNodeContext, isContextReady } from '../../../lib/api/handlers';
 
 export const dynamic = 'force-dynamic';
 

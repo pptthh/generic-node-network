@@ -1,6 +1,6 @@
-import { withAuth, errorResponse } from '../../../lib/api/middleware.js';
-import { getNodeContext } from '../../../lib/api/handlers.js';
-import { nowIso } from '../../../lib/utils/time.js';
+import { withAuth, errorResponse } from '../../../lib/api/middleware';
+import { getNodeContext } from '../../../lib/api/handlers';
+import { nowIso } from '../../../lib/utils/time';
 
 export async function POST(req: Request): Promise<Response> {
   return withAuth(req, async () => {

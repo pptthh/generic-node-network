@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { WebSocketEvent } from '../../../lib/types/index.js';
+import type { WebSocketEvent } from '../../../lib/types/index';
 
 interface StreamMessage {
   id: string;

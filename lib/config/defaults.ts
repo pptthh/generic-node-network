@@ -9,10 +9,10 @@ function nodeIdToPortOffset(nodeId: string): number {
 }
 
 export function getDefaults(nodeId?: string): Omit<NodeConfig, 'nodeId' | 'apiToken' | 'configFile' | 'dbPath'> {
-  const offset = nodeId ? nodeIdToPortOffset(nodeId) : 111;
+  const offset = nodeId ? nodeIdToPortOffset(nodeId) : 0;
   return {
-    apiPort: 25000 + offset,
-    p2pPort: 28000 + offset,
+    apiPort: 25111 + offset,
+    p2pPort: 28111 + offset,
     bootstrapPeers: [],
     logging: {
       level: 'error',

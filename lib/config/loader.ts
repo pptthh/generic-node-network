@@ -142,7 +142,7 @@ export async function loadConfig(): Promise<NodeConfig> {
   const defaults = getDefaults(nodeId);
 
   const defaultConfigFile = `./gnn-conf-${nodeId}.json`;
-  const defaultDbPath = `./.next/${envConfig.env}/${nodeId}/gnn-DB`;
+  const defaultDbPath = `./.next/${nodeId}/dev/data-base`;
 
   const configFilePath = cliConfig.configFile
     ?? process.env.GNN_CONFIG_FILE

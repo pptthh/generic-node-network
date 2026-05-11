@@ -6,8 +6,9 @@
   "private": true,
   "scripts": {
     "clean": "rm -rf ./.next/ tmp/",
+    "start": "bun server.ts",
     "dev": "bun server.ts",
-    "test-start": "bun clean && bun gnnn & sleep 5 && pkill bun && sleep 2 && bun clean",
+    "test-start": "bun clean && bun gnnn & sleep 7 && pkill bun && sleep && bun clean",
     "gnn:a": "bun server.ts --node-id=node-a --log-level=info",
     "gnn:b": "bun server.ts --node-id=node-b --log-level=error",
     "gnn:c": "bun server.ts --node-id=node-c --log-level=error",

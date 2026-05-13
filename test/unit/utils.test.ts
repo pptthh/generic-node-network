@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, test, expect } from 'vitest';
 import { nowIso, nowMs, uptimeSeconds } from '../../lib/utils/time.js';
 import { isValidNodeId } from '../../lib/utils/validation.js';
 import { getDefaults } from '../../lib/config/defaults.js';

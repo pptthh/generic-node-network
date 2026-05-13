@@ -3,8 +3,8 @@ import { GNNNode } from '../../lib/p2p/node.js';
 import { getDefaults } from '../../lib/config/defaults.js';
 import type { NodeConfig } from '../../lib/types/config.js';
 
-function makeConfig(nodeId: string, p2pPort: number): NodeConfig {
-  const defaults = getDefaults();
+async function makeConfig(nodeId: string, p2pPort: number): Promise<NodeConfig> {
+  const defaults = await getDefaults();
   return {
     ...defaults,
     nodeId,
@@ -22,7 +22,7 @@ describe('Load Test - Message Throughput', () => {
   let node: GNNNode;
 
   beforeAll(async () => {
-    node = new GNNNode(makeConfig('load-test', 28300));
+    node = new GNNNode(await makeConfig('load-test', 28300));
     await node.start();
     await node.subscribe('load/test');
   }, 15000);

@@ -4,8 +4,8 @@ import { getDefaults } from '../../lib/config/defaults.js';
 import type { NodeConfig } from '../../lib/types/config.js';
 import type { PublishedMessage } from '../../lib/types/messages.js';
 
-function makeConfig(nodeId: string, apiPort: number, p2pPort: number): NodeConfig {
-  const defaults = getDefaults();
+async function makeConfig(nodeId: string, apiPort: number, p2pPort: number): Promise<NodeConfig> {
+  const defaults = await getDefaults();
   return {
     ...defaults,
     nodeId,
@@ -24,8 +24,8 @@ describe('Pub-Sub Integration', () => {
   let nodeB: GNNNode;
 
   beforeAll(async () => {
-    nodeA = new GNNNode(makeConfig('pubsub-a', 25231, 28231));
-    nodeB = new GNNNode(makeConfig('pubsub-b', 25232, 28232));
+    nodeA = new GNNNode(await makeConfig('pubsub-a', 25231, 28231));
+    nodeB = new GNNNode(await makeConfig('pubsub-b', 25232, 28232));
 
     await nodeA.start();
     await nodeB.start();

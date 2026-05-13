@@ -1,3 +1,4 @@
+import { createServer } from 'net';
 import type { NodeConfig } from '../types/config.js';
 
 function nodeIdToPortOffset(nodeId: string): number {
@@ -8,11 +9,31 @@ function nodeIdToPortOffset(nodeId: string): number {
   return hash % 900;
 }
 
-export function getDefaults(nodeId?: string): Omit<NodeConfig, 'nodeId' | 'apiToken' | 'configFile' | 'dbPath'> {
+function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = createServer();
+    server.once('error', () => resolve(false));
+    server.once('listening', () => server.close(() => resolve(true)));
+    server.listen(port, '0.0.0.0');
+  });
+}
+
+async function findAvailablePort(startPort: number): Promise<number> {
+  for (let i = 0; i < 100; i++) {
+    if (await isPortAvailable(startPort + i)) return startPort + i;
+  }
+  throw new Error(`No available port found starting from ${startPort}`);
+}
+
+export async function getDefaults(nodeId?: string): Promise<Omit<NodeConfig, 'nodeId' | 'apiToken' | 'configFile' | 'dbPath'>> {
   const offset = nodeId ? nodeIdToPortOffset(nodeId) : 0;
+  const [apiPort, p2pPort] = await Promise.all([
+    findAvailablePort(25111 + offset),
+    findAvailablePort(28111 + offset),
+  ]);
   return {
-    apiPort: 25111 + offset,
-    p2pPort: 28111 + offset,
+    apiPort,
+    p2pPort,
     bootstrapPeers: [],
     logging: {
       level: 'error',

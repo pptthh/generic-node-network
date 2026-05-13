@@ -3,8 +3,8 @@ import { GNNNode } from '../../lib/p2p/node.js';
 import { getDefaults } from '../../lib/config/defaults.js';
 import type { NodeConfig } from '../../lib/types/config.js';
 
-function makeConfig(nodeId: string, apiPort: number, p2pPort: number): NodeConfig {
-  const defaults = getDefaults();
+async function makeConfig(nodeId: string, apiPort: number, p2pPort: number): Promise<NodeConfig> {
+  const defaults = await getDefaults();
   return {
     ...defaults,
     nodeId,
@@ -23,8 +23,8 @@ describe('Multi-node P2P Discovery', () => {
   let nodeB: GNNNode;
 
   beforeAll(async () => {
-    nodeA = new GNNNode(makeConfig('int-test-a', 25211, 28211));
-    nodeB = new GNNNode(makeConfig('int-test-b', 25212, 28212));
+    nodeA = new GNNNode(await makeConfig('int-test-a', 25211, 28211));
+    nodeB = new GNNNode(await makeConfig('int-test-b', 25212, 28212));
 
     await nodeA.start();
     await nodeB.start();

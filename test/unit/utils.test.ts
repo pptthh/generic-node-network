@@ -112,37 +112,37 @@ describe('isValidNodeId', () => {
 });
 
 describe('getDefaults with nodeId', () => {
-  test('should produce port offset when nodeId is provided', () => {
-    const defaultsWithId = getDefaults('node-a');
-    const defaultsNoId = getDefaults();
+  test('should produce port offset when nodeId is provided', async () => {
+    const defaultsWithId = await getDefaults('node-a');
+    const defaultsNoId = await getDefaults();
     // With a nodeId, ports may differ from the base 25111 / 28111
     expect(typeof defaultsWithId.apiPort).toBe('number');
     expect(typeof defaultsWithId.p2pPort).toBe('number');
     expect(defaultsWithId.apiPort).toBeGreaterThanOrEqual(25111);
-    expect(defaultsWithId.apiPort).toBeLessThanOrEqual(26011); // 25111 + 900
+    expect(defaultsWithId.apiPort).toBeLessThanOrEqual(26111); // 25111 + 900 + 100 scan
     expect(defaultsWithId.p2pPort).toBeGreaterThanOrEqual(28111);
-    expect(defaultsWithId.p2pPort).toBeLessThanOrEqual(29011);
-    // Without nodeId offset is 0, so ports are baseline
-    expect(defaultsNoId.apiPort).toBe(25111);
-    expect(defaultsNoId.p2pPort).toBe(28111);
+    expect(defaultsWithId.p2pPort).toBeLessThanOrEqual(29111);
+    // Without nodeId offset is 0, so ports start at baseline
+    expect(defaultsNoId.apiPort).toBeGreaterThanOrEqual(25111);
+    expect(defaultsNoId.p2pPort).toBeGreaterThanOrEqual(28111);
   });
 
-  test('should produce deterministic offsets for the same nodeId', () => {
-    const a = getDefaults('my-node');
-    const b = getDefaults('my-node');
+  test('should produce deterministic offsets for the same nodeId', async () => {
+    const a = await getDefaults('my-node');
+    const b = await getDefaults('my-node');
     expect(a.apiPort).toBe(b.apiPort);
     expect(a.p2pPort).toBe(b.p2pPort);
   });
 
-  test('should produce different offsets for different nodeIds', () => {
-    const a = getDefaults('node-alpha');
-    const b = getDefaults('node-beta');
+  test('should produce different offsets for different nodeIds', async () => {
+    const a = await getDefaults('node-alpha');
+    const b = await getDefaults('node-beta');
     // Very likely different (hash collision is unlikely for these)
     expect(a.apiPort !== b.apiPort || a.p2pPort !== b.p2pPort).toBe(true);
   });
 
-  test('should keep all non-port defaults unchanged regardless of nodeId', () => {
-    const d = getDefaults('some-node');
+  test('should keep all non-port defaults unchanged regardless of nodeId', async () => {
+    const d = await getDefaults('some-node');
     expect(d.logging.level).toBe('error');
     expect(d.message.retentionDays).toBe(28);
     expect(d.message.maxPayloadSize).toBe(31744);

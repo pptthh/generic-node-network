@@ -3,10 +3,10 @@ import { getDefaults } from '../../lib/config/defaults.js';
 import { validateConfig } from '../../lib/config/validator.js';
 
 describe('Config defaults', () => {
-  it('should return valid default values', () => {
-    const defaults = getDefaults();
-    expect(defaults.apiPort).toBe(25111);
-    expect(defaults.p2pPort).toBe(28111);
+  it('should return valid default values', async () => {
+    const defaults = await getDefaults();
+    expect(defaults.apiPort).toBeGreaterThanOrEqual(25111);
+    expect(defaults.p2pPort).toBeGreaterThanOrEqual(28111);
     expect(defaults.logging.level).toBe('error');
     expect(defaults.message.retentionDays).toBe(28);
     expect(defaults.message.maxPayloadSize).toBe(31744);

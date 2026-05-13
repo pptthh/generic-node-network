@@ -1,8 +1,8 @@
-import { describe, test, expect } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import {
-  encodeMessage,
   decodeQueryMessage,
   decodeResponseMessage,
+  encodeMessage,
 } from '../../lib/p2p/messaging.js';
 import type { QueryMessage, ResponseMessage } from '../../lib/types/messages.js';
 

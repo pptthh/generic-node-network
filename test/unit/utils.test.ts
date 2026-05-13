@@ -1,7 +1,7 @@
-import { describe, test, expect } from 'vitest';
+import { describe, expect, test } from 'vitest';
+import { getDefaults } from '../../lib/config/defaults.js';
 import { nowIso, nowMs, uptimeSeconds } from '../../lib/utils/time.js';
 import { isValidNodeId } from '../../lib/utils/validation.js';
-import { getDefaults } from '../../lib/config/defaults.js';
 
 describe('time utilities', () => {
   describe('nowIso', () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { getDefaults } from '../../lib/config/defaults.js';
 import { validateConfig } from '../../lib/config/validator.js';
 

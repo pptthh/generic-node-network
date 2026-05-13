@@ -1,7 +1,7 @@
-import { describe, test, expect, beforeEach, afterEach } from 'vitest';
+import { mkdirSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { rmSync, mkdirSync } from 'fs';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { Database } from '../../lib/storage/database.js';
 import { Schema } from '../../lib/storage/schema.js';
 import type { QueryMessage, ResponseMessage } from '../../lib/types/messages.js';

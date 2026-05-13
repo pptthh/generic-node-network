@@ -1,5 +1,5 @@
-import type { Database } from './database.js';
 import type { NodeConfig } from '../types/config.js';
+import type { Database } from './database.js';
 
 export async function initializeDatabase(db: Database, config: NodeConfig): Promise<void> {
   // Persist core config values

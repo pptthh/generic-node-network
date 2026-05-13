@@ -1,8 +1,8 @@
 import { headers } from 'next/headers';
-import StatusCard from './components/status-card';
-import MessageStream from './components/message-stream';
 import { getNodeContext, isContextReady } from '../../lib/api/handlers';
-import { uptimeSeconds, nowIso } from '../../lib/utils/time';
+import { uptimeSeconds } from '../../lib/utils/time';
+import MessageStream from './components/message-stream';
+import StatusCard from './components/status-card';
 
 export const dynamic = 'force-dynamic';
 

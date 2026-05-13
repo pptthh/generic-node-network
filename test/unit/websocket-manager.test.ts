@@ -1,6 +1,6 @@
-import { describe, test, expect, beforeEach, mock } from 'vitest';
-import { WebSocketManager, getWebSocketManager, setWebSocketManager } from '../../lib/websocket/server.js';
+import { describe, expect, test } from 'vitest';
 import type { NodeConfig } from '../../lib/types/config.js';
+import { WebSocketManager, getWebSocketManager, setWebSocketManager } from '../../lib/websocket/server.js';
 
 function makeConfig(overrides: Partial<NodeConfig> = {}): NodeConfig {
   return {

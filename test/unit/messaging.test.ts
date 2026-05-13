@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
-  encodeMessage,
   decodePublishedMessage,
+  encodeMessage,
   validatePayloadSize,
 } from '../../lib/p2p/messaging.js';
 import type { PublishedMessage } from '../../lib/types/messages.js';
-import { isPayloadTooLarge, getPayloadSize, isValidTopic } from '../../lib/utils/validation.js';
+import { getPayloadSize, isPayloadTooLarge, isValidTopic } from '../../lib/utils/validation.js';
 
 describe('Message encoding', () => {
   it('should encode and decode a published message', () => {

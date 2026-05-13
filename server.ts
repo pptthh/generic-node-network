@@ -1,15 +1,15 @@
 import { createServer } from 'http';
-import { parse } from 'url';
 import next from 'next';
+import { parse } from 'url';
 import { v4 as uuidv4 } from 'uuid';
-import { loadConfig } from './lib/config/loader.js';
-import { initLogger, logger } from './lib/utils/logger.js';
-import { Database } from './lib/storage/database.js';
-import { Schema } from './lib/storage/schema.js';
-import { initializeDatabase } from './lib/storage/migrations.js';
-import { GNNNode } from './lib/p2p/node.js';
 import { setNodeContext } from './lib/api/handlers.js';
 import { setApiConfig } from './lib/api/middleware.js';
+import { loadConfig } from './lib/config/loader.js';
+import { GNNNode } from './lib/p2p/node.js';
+import { Database } from './lib/storage/database.js';
+import { initializeDatabase } from './lib/storage/migrations.js';
+import { Schema } from './lib/storage/schema.js';
+import { initLogger, logger } from './lib/utils/logger.js';
 import { WebSocketManager, setWebSocketManager } from './lib/websocket/server.js';
 
 const isDev = process.env.NODE_ENV !== 'production';

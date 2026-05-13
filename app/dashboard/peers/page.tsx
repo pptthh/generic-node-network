@@ -1,5 +1,5 @@
-import PeerList from '../components/peer-list';
 import { getNodeContext, isContextReady } from '../../../lib/api/handlers';
+import PeerList from '../components/peer-list';
 
 export const dynamic = 'force-dynamic';
 

@@ -1,5 +1,5 @@
-import { withAuth } from '../../../../lib/api/middleware';
 import { getNodeContext } from '../../../../lib/api/handlers';
+import { withAuth } from '../../../../lib/api/middleware';
 
 export async function GET(req: Request): Promise<Response> {
   return withAuth(req, async () => {

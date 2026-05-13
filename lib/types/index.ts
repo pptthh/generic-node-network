@@ -1,6 +1,6 @@
+export * from './config.js';
 export * from './messages.js';
 export * from './peers.js';
-export * from './config.js';
 
 export interface NodeInfo {
   nodeId: string;

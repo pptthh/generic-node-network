@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { GNNNode } from '../../lib/p2p/node.js';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getDefaults } from '../../lib/config/defaults.js';
+import { GNNNode } from '../../lib/p2p/node.js';
 import type { NodeConfig } from '../../lib/types/config.js';
 
 async function makeConfig(nodeId: string, p2pPort: number): Promise<NodeConfig> {

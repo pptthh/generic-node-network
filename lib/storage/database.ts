@@ -1,6 +1,6 @@
+import { mkdirSync } from 'fs';
 import { Level } from 'level';
 import { join } from 'path';
-import { mkdirSync } from 'fs';
 
 export interface ScanOptions {
   gte?: string;

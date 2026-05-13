@@ -1,6 +1,6 @@
-import { withAuth } from '../../../../lib/api/middleware';
 import { getNodeContext } from '../../../../lib/api/handlers';
-import { uptimeSeconds, nowIso } from '../../../../lib/utils/time';
+import { withAuth } from '../../../../lib/api/middleware';
+import { nowIso, uptimeSeconds } from '../../../../lib/utils/time';
 
 export async function GET(req: Request): Promise<Response> {
   return withAuth(req, async () => {

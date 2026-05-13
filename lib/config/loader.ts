@@ -1,5 +1,5 @@
-import { readFileSync, existsSync } from 'fs';
 import { randomBytes } from 'crypto';
+import { existsSync, readFileSync } from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import type { NodeConfig } from '../types/config.js';
 import { getDefaults } from './defaults.js';

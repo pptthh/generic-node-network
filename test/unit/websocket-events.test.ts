@@ -1,8 +1,8 @@
-import { describe, test, expect, beforeEach, afterEach } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import {
   buildMessagePublishedEvent,
-  buildPeerOnlineEvent,
   buildPeerOfflineEvent,
+  buildPeerOnlineEvent,
 } from '../../lib/websocket/events.js';
 
 describe('buildMessagePublishedEvent', () => {

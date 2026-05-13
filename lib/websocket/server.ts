@@ -1,10 +1,10 @@
-import type { WebSocketEvent } from '../types/index.js';
 import type { GNNNode } from '../p2p/node.js';
 import type { NodeConfig } from '../types/config.js';
-import { logger } from '../utils/logger.js';
-import { buildMessagePublishedEvent, buildPeerOnlineEvent, buildPeerOfflineEvent } from './events.js';
+import type { WebSocketEvent } from '../types/index.js';
 import type { PublishedMessage } from '../types/messages.js';
 import type { Peer } from '../types/peers.js';
+import { logger } from '../utils/logger.js';
+import { buildMessagePublishedEvent, buildPeerOfflineEvent, buildPeerOnlineEvent } from './events.js';
 
 export interface WebSocketClient {
   id: string;

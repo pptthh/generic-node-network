@@ -1,11 +1,11 @@
-import { describe, test, expect, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, test } from 'vitest';
 import {
-  setApiConfig,
-  getApiConfig,
   authenticateRequest,
-  unauthorizedResponse,
   errorResponse,
+  getApiConfig,
   notFoundResponse,
+  setApiConfig,
+  unauthorizedResponse,
   withAuth,
 } from '../../lib/api/middleware.js';
 import type { NodeConfig } from '../../lib/types/config.js';

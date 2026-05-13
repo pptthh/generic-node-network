@@ -1,6 +1,6 @@
-import type { Database } from './database.js';
 import type { PublishedMessage, QueryMessage, ResponseMessage } from '../types/messages.js';
 import type { Peer } from '../types/peers.js';
+import type { Database } from './database.js';
 
 export class Schema {
   constructor(private readonly db: Database) {}

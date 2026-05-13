@@ -1,13 +1,13 @@
 import { createServer } from 'net';
 import type { NodeConfig } from '../types/config.js';
 
-function nodeIdToPortOffset(nodeId: string): number {
-  let hash = 0;
-  for (let i = 0; i < nodeId.length; i++) {
-    hash = ((hash << 5) - hash + nodeId.charCodeAt(i)) & 0x7fffffff;
-  }
-  return hash % 900;
-}
+// function nodeIdToPortOffset(nodeId: string): number {
+//   let hash = 0;
+//   for (let i = 0; i < nodeId.length; i++) {
+//     hash = ((hash << 5) - hash + nodeId.charCodeAt(i)) & 0x7fffffff;
+//   }
+//   return hash % 900;
+// }
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -26,7 +26,7 @@ async function findAvailablePort(startPort: number): Promise<number> {
 }
 
 export async function getDefaults(nodeId?: string): Promise<Omit<NodeConfig, 'nodeId' | 'apiToken' | 'configFile' | 'dbPath'>> {
-  const offset = nodeId ? nodeIdToPortOffset(nodeId) : 0;
+  const offset = 0; // nodeId ? nodeIdToPortOffset(nodeId) : 0;
   const [apiPort, p2pPort] = await Promise.all([
     findAvailablePort(25111 + offset),
     findAvailablePort(28111 + offset),

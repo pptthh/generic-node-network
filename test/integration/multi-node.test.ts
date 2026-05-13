@@ -59,8 +59,8 @@ describe('P2P RPC Query', () => {
   let nodeB: GNNNode;
 
   beforeAll(async () => {
-    nodeA = new GNNNode(makeConfig('rpc-test-a', 25221, 28221));
-    nodeB = new GNNNode(makeConfig('rpc-test-b', 25222, 28222));
+    nodeA = new GNNNode(await makeConfig('rpc-test-a', 25221, 28221));
+    nodeB = new GNNNode(await makeConfig('rpc-test-b', 25222, 28222));
 
     await nodeA.start();
     await nodeB.start();

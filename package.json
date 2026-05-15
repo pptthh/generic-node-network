@@ -10,15 +10,16 @@
     "dev": "bun server.ts",
     "test-start": "bun gnnn & sleep 7 && pkill bun && sleep && bun clean",
     "gnn:a": "bun server.ts --node-id=node-a --log-level=debug",
-    "gnn:b": "bun server.ts --node-id=node-b --log-level=info",
-    "gnn:c": "bun server.ts --node-id=node-c --log-level=warn",
-    "gnn:d": "bun server.ts --node-id=node-d",
-    "gnn:e": "bun server.ts --node-id=node-e",
+    "gnn:b": "sleep 10 && bun server.ts --node-id=node-b --log-level=info",
+    "gnn:c": "sleep 20 && bun server.ts --node-id=node-c --log-level=warn",
+    "gnn:d": "sleep 30 && bun server.ts --node-id=node-d",
+    "gnn:e": "sleep 40 && bun server.ts --node-id=node-e",
     "gnnn": "bun gnn:a & bun gnn:b & bun gnn:c & bun gnn:d & bun gnn:e",
     "build": "bun next build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "wait": "sleep 10"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",

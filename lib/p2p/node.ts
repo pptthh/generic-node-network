@@ -1,12 +1,14 @@
 import { gossipsub } from '@chainsafe/libp2p-gossipsub';
 import { noise } from '@chainsafe/libp2p-noise';
 import { yamux } from '@chainsafe/libp2p-yamux';
+import { circuitRelayTransport, circuitRelayServer } from '@libp2p/circuit-relay-v2';
+import { dcutr } from '@libp2p/dcutr';
 import { identify } from '@libp2p/identify';
 import type { Libp2p } from '@libp2p/interface';
 import { kadDHT } from '@libp2p/kad-dht';
 import { mdns } from '@libp2p/mdns';
 import { ping } from '@libp2p/ping';
-import { tcp } from '@libp2p/tcp';
+import { autoNAT } from '@libp2p/autonat';
 import { multiaddr } from '@multiformats/multiaddr';
 import { EventEmitter } from 'events';
 import { createLibp2p } from 'libp2p';
@@ -17,6 +19,14 @@ import type { Peer } from '../types/peers.js';
 import { logger } from '../utils/logger.js';
 import { nowMs } from '../utils/time.js';
 import { GNN_RPC_PROTOCOL, type RpcRequest, type RpcResponse } from './types.js';
+import { buildTransports, buildListenAddresses, buildAnnounceAddresses, logTransportConfig } from './transports.js';
+import { NatManager } from './nat/manager.js';
+import { RelayClient } from './relay/client.js';
+import { ConnectionPool } from './connection/pool.js';
+import { ReachabilityChecker } from './reachability.js';
+import { BootstrapManager } from './bootstrap.js';
+import { MetricsCollector, type MetricsSnapshot, type ConnectivitySummary } from './metrics.js';
+import { connectWithFailover, type ConnectionAttemptResult } from './connection/failover.js';
 
 const MAX_QUEUE_SIZE = 1000;
 
@@ -33,6 +43,14 @@ export class GNNNode extends EventEmitter {
   private cleanupTimer: ReturnType<typeof setInterval> | null = null;
   public readonly startedAt: number;
 
+  // Phase 2 modules
+  private natManager: NatManager | null = null;
+  private relayClient: RelayClient | null = null;
+  private connectionPool: ConnectionPool | null = null;
+  private reachabilityChecker: ReachabilityChecker | null = null;
+  private bootstrapManager: BootstrapManager | null = null;
+  private metricsCollector: MetricsCollector | null = null;
+
   constructor(config: NodeConfig) {
     super();
     this.config = config;
@@ -40,27 +58,72 @@ export class GNNNode extends EventEmitter {
   }
 
   async start(): Promise<void> {
-    const listenAddr = `/ip4/0.0.0.0/tcp/${this.config.p2pPort}`;
+    // Build transport configuration
+    const transports = buildTransports(this.config);
+    const listenAddresses = buildListenAddresses(this.config);
+
+    // Add circuit relay transport for client-side relay support
+    if (this.config.natTraversal?.relay?.enabled !== false) {
+      transports.push(circuitRelayTransport({
+        discoverRelays: 1,
+      }));
+    }
+
+    logTransportConfig(this.config);
+
+    // Build peer discovery array
+    const peerDiscovery: unknown[] = [];
+    if (this.config.discovery.mdnsEnabled) {
+      peerDiscovery.push(mdns());
+    }
+
+    // Build services
+    const gossipsubConfig = this.config.gossipsub;
+    const dhtMode = this.config.discovery.dht?.mode ?? 'client';
+
+    const services: Record<string, unknown> = {
+      identify: identify(),
+      ping: ping(),
+      pubsub: gossipsub({
+        emitSelf: false,
+        allowPublishToZeroTopicPeers: true,
+        heartbeatInterval: gossipsubConfig?.heartbeatInterval ?? 1000,
+      }),
+    };
+
+    // DHT
+    if (this.config.discovery.dhtEnabled) {
+      services.dht = kadDHT({ clientMode: dhtMode === 'client' });
+    }
+
+    // AutoNAT (detects if we're behind NAT)
+    if (this.config.natTraversal?.enabled !== false) {
+      services.autoNAT = autoNAT();
+    }
+
+    // DCUtR (Direct Connection Upgrade through Relay - hole punching)
+    if (this.config.natTraversal?.holepunching?.enabled !== false) {
+      services.dcutr = dcutr();
+    }
+
+    // Circuit Relay Server (optional - for nodes acting as relays)
+    if (this.config.natTraversal?.relay?.enabled !== false) {
+      services.relay = circuitRelayServer({
+        reservations: {
+          maxReservations: 128,
+        },
+      });
+    }
 
     this.libp2p = await createLibp2p({
       addresses: {
-        listen: [listenAddr],
+        listen: listenAddresses,
       },
-      transports: [tcp()],
+      transports: transports as any,
       connectionEncrypters: [noise()],
       streamMuxers: [yamux()],
-      peerDiscovery: this.config.discovery.mdnsEnabled ? [mdns()] : [],
-      services: {
-        identify: identify(),
-        ping: ping(),
-        ...(this.config.discovery.dhtEnabled ? {
-          dht: kadDHT({ clientMode: false }),
-        } : {}),
-        pubsub: gossipsub({
-          emitSelf: false,
-          allowPublishToZeroTopicPeers: true,
-        }),
-      },
+      peerDiscovery: peerDiscovery as any,
+      services: services as any,
     });
 
     // Handle peer discovery
@@ -80,21 +143,40 @@ export class GNNNode extends EventEmitter {
     this.libp2p.addEventListener('peer:connect', (evt) => {
       const peerId = evt.detail.toString();
       const existing = this.peers.get(peerId);
-      const multiaddrs = this.libp2p!.getMultiaddrs();
-      const addr = multiaddrs[0]?.toString() ?? '';
+      const connections = this.libp2p!.getConnections(evt.detail);
+      const addr = connections[0]?.remoteAddr?.toString() ?? '';
+
+      // Determine transport type from address
+      let discoveryMethod = existing?.discoveryMethod ?? 'mDNS';
+      if (addr.includes('/p2p-circuit')) {
+        discoveryMethod = 'relay';
+      } else if (addr.includes('/ws')) {
+        discoveryMethod = 'websocket';
+      }
 
       const peer: Peer = {
         peerId,
         multiaddr: addr,
         status: 'online',
         lastSeen: nowMs(),
-        discoveryMethod: existing?.discoveryMethod ?? 'mDNS',
+        discoveryMethod,
         metadata: existing?.metadata,
       };
 
       this.peers.set(peerId, peer);
       this.emit('peer:online', peer);
-      logger.info(`Peer connected: ${peerId}`);
+
+      // Track in connection pool
+      if (this.connectionPool) {
+        this.connectionPool.addConnection(peerId, discoveryMethod);
+      }
+
+      // Track in metrics
+      if (this.metricsCollector) {
+        this.metricsCollector.recordConnectionAttempt(true);
+      }
+
+      logger.info(`Peer connected: ${peerId} via ${discoveryMethod}`);
     });
 
     // Handle peer disconnect
@@ -105,6 +187,12 @@ export class GNNNode extends EventEmitter {
         peer.status = 'offline';
         peer.lastSeen = nowMs();
         this.emit('peer:offline', peer);
+
+        // Remove from connection pool
+        if (this.connectionPool) {
+          this.connectionPool.removePeer(peerId);
+        }
+
         logger.info(`Peer disconnected: ${peerId}`);
       }
     });
@@ -155,7 +243,79 @@ export class GNNNode extends EventEmitter {
 
     await this.libp2p.start();
 
-    // Connect bootstrap peers
+    // --- Phase 2: Start sub-modules ---
+
+    // 1. NAT Manager
+    if (this.config.natTraversal?.enabled !== false) {
+      this.natManager = new NatManager(this.config.natTraversal!);
+      const natResult = await this.natManager.start(this.config.p2pPort);
+
+      // Update announce addresses if public IP detected
+      if (natResult.publicAddress) {
+        const announceAddrs = buildAnnounceAddresses(
+          this.config,
+          natResult.publicAddress.address,
+          this.libp2p.peerId.toString()
+        );
+        logger.info('Public announce addresses:', { addresses: announceAddrs });
+
+        // Update metrics
+        if (this.metricsCollector) {
+          this.metricsCollector.setPublicIP(natResult.publicAddress.address);
+          this.metricsCollector.setNatType(natResult.natType);
+          this.metricsCollector.setReachabilityStatus(
+            natResult.reachable ? 'direct' : 'relay'
+          );
+        }
+      }
+    }
+
+    // 2. Relay Client
+    if (this.config.natTraversal?.relay?.enabled !== false) {
+      this.relayClient = new RelayClient(this.config.natTraversal!.relay);
+      await this.relayClient.start(this.libp2p);
+    }
+
+    // 3. Connection Pool
+    if (this.config.performance?.connectionPooling?.enabled !== false) {
+      this.connectionPool = new ConnectionPool(
+        this.config.performance?.connectionPooling ?? {
+          enabled: true, maxPoolSize: 50, reuseThreshold: 5,
+          idleTimeout: 60000, connectionTTL: 3600000,
+        }
+      );
+      this.connectionPool.start();
+    }
+
+    // 4. Reachability Checker
+    if (this.config.monitoring?.reachabilityCheck?.enabled !== false) {
+      this.reachabilityChecker = new ReachabilityChecker(
+        this.config.monitoring?.reachabilityCheck ?? {
+          enabled: true, interval: 300000, peerSamples: 5,
+        }
+      );
+      this.reachabilityChecker.start(this.libp2p);
+    }
+
+    // 5. Bootstrap Manager
+    if (this.config.publicBootstrapNodes && this.config.publicBootstrapNodes.length > 0) {
+      this.bootstrapManager = new BootstrapManager(this.config.publicBootstrapNodes);
+      await this.bootstrapManager.start(this.libp2p);
+    }
+
+    // 6. Metrics Collector
+    if (this.config.monitoring?.connectivityMetrics?.enabled !== false) {
+      this.metricsCollector = new MetricsCollector(
+        this.config.monitoring?.connectivityMetrics ?? {
+          enabled: true, sampleInterval: 60000,
+        }
+      );
+      this.metricsCollector.start(this.libp2p);
+    }
+
+    // --- End Phase 2 sub-modules ---
+
+    // Connect bootstrap peers (legacy format)
     for (const addr of this.config.bootstrapPeers) {
       try {
         await this.libp2p.dial(multiaddr(addr));
@@ -183,6 +343,32 @@ export class GNNNode extends EventEmitter {
       clearTimeout(pending.timer);
       pending.reject(new Error('Node stopping'));
       this.pendingQueries.delete(queryId);
+    }
+
+    // Stop Phase 2 modules
+    if (this.natManager) {
+      await this.natManager.stop();
+      this.natManager = null;
+    }
+    if (this.relayClient) {
+      await this.relayClient.stop();
+      this.relayClient = null;
+    }
+    if (this.connectionPool) {
+      this.connectionPool.stop();
+      this.connectionPool = null;
+    }
+    if (this.reachabilityChecker) {
+      this.reachabilityChecker.stop();
+      this.reachabilityChecker = null;
+    }
+    if (this.bootstrapManager) {
+      this.bootstrapManager.stop();
+      this.bootstrapManager = null;
+    }
+    if (this.metricsCollector) {
+      this.metricsCollector.stop();
+      this.metricsCollector = null;
     }
 
     if (this.libp2p) {
@@ -213,6 +399,11 @@ export class GNNNode extends EventEmitter {
     }
     this.messageQueue.push(msg);
     this.emit('message', msg);
+
+    // Track bandwidth
+    if (this.metricsCollector) {
+      this.metricsCollector.recordBytesOut(encoded.length);
+    }
 
     logger.debug(`Published message: ${messageId} on topic: ${topic}`);
     return messageId;
@@ -355,6 +546,88 @@ export class GNNNode extends EventEmitter {
     logger.info(`Added bootstrap peer: ${addr}`);
   }
 
+  /**
+   * Connect to a peer using multi-protocol failover strategy.
+   * Tries transports in priority order (TCP -> WS -> WSS -> Relay).
+   */
+  async dialPeerWithFailover(addresses: string[]): Promise<ConnectionAttemptResult> {
+    if (!this.libp2p) throw new Error('Node not started');
+
+    const result = await connectWithFailover(
+      this.libp2p,
+      addresses,
+      this.config.connectionStrategy
+    );
+
+    // Track metrics
+    if (this.metricsCollector) {
+      this.metricsCollector.recordConnectionAttempt(result.success);
+      if (!result.success) {
+        this.metricsCollector.recordFailover();
+      }
+    }
+
+    return result;
+  }
+
+  // --- Phase 2: Public API Methods ---
+
+  /**
+   * Get connectivity metrics snapshot
+   */
+  getMetrics(): MetricsSnapshot | null {
+    return this.metricsCollector?.getMetrics() ?? null;
+  }
+
+  /**
+   * Get connectivity summary
+   */
+  getConnectivity(): ConnectivitySummary | null {
+    return this.metricsCollector?.getConnectivity() ?? null;
+  }
+
+  /**
+   * Get detected public IP address
+   */
+  getPublicIP(): string | null {
+    return this.natManager?.getResult()?.publicAddress?.address ?? null;
+  }
+
+  /**
+   * Get detected NAT type
+   */
+  getNatType(): string {
+    return this.natManager?.getResult()?.natType ?? 'Unknown';
+  }
+
+  /**
+   * Get reachability status
+   */
+  getReachabilityStatus(): string {
+    if (!this.natManager) return 'unknown';
+    const result = this.natManager.getResult();
+    if (!result) return 'unknown';
+    if (result.reachable) return 'direct';
+    if (result.relayRequired) return 'relay';
+    return 'unreachable';
+  }
+
+  /**
+   * Whether this node requires relay for internet connectivity
+   */
+  isRelayRequired(): boolean {
+    return this.natManager?.isRelayRequired() ?? false;
+  }
+
+  /**
+   * Get relay addresses for this node
+   */
+  getRelayAddresses(): string[] {
+    return this.relayClient?.getRelayAddresses() ?? [];
+  }
+
+  // --- Existing Public Methods ---
+
   getPeers(): Peer[] {
     return [...this.peers.values()];
   }
@@ -395,12 +668,23 @@ export class GNNNode extends EventEmitter {
     const encoded = new TextEncoder().encode(JSON.stringify(req));
     await stream.sink([encoded]);
 
+    // Track bandwidth
+    if (this.metricsCollector) {
+      this.metricsCollector.recordBytesOut(encoded.length);
+    }
+
     const chunks: Uint8Array[] = [];
     for await (const chunk of stream.source) {
       chunks.push(chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk.subarray()));
     }
 
     const data = Buffer.concat(chunks).toString('utf-8');
+
+    // Track bandwidth
+    if (this.metricsCollector) {
+      this.metricsCollector.recordBytesIn(data.length);
+    }
+
     return JSON.parse(data) as RpcResponse;
   }
 
@@ -414,6 +698,10 @@ export class GNNNode extends EventEmitter {
           nodeId: this.config.nodeId,
           uptime: Math.floor((nowMs() - this.startedAt) / 1000),
           peerCount: this.getPeers().filter(p => p.status === 'online').length,
+          // Phase 2 additions
+          natType: this.getNatType(),
+          reachability: this.getReachabilityStatus(),
+          publicIP: this.getPublicIP(),
         };
         break;
       case 'count_messages':

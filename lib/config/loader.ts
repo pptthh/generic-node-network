@@ -48,6 +48,103 @@ function parseCLIArgs(): Partial<NodeConfig> {
       case 'bootstrap-peers':
         result.bootstrapPeers = value.split(',').map(s => s.trim()).filter(Boolean);
         break;
+
+      // Phase 2: NAT Traversal
+      case 'nat-enabled':
+        result.natTraversal = { ...(result.natTraversal as object ?? {}), enabled: value !== 'false' };
+        break;
+      case 'nat-methods':
+        result.natTraversal = { ...(result.natTraversal as object ?? {}), methods: value.split(',').map(s => s.trim()) };
+        break;
+      case 'upnp-enabled':
+        result.natTraversal = {
+          ...(result.natTraversal as object ?? {}),
+          upnp: { ...(((result.natTraversal as any)?.upnp) ?? {}), enabled: value !== 'false' },
+        };
+        break;
+      case 'pmp-enabled':
+        result.natTraversal = {
+          ...(result.natTraversal as object ?? {}),
+          pmp: { enabled: value !== 'false' },
+        };
+        break;
+      case 'stun-servers':
+        result.natTraversal = {
+          ...(result.natTraversal as object ?? {}),
+          stun: { ...(((result.natTraversal as any)?.stun) ?? {}), servers: value.split(',').map(s => s.trim()) },
+        };
+        break;
+      case 'relay-servers':
+        result.natTraversal = {
+          ...(result.natTraversal as object ?? {}),
+          relay: { ...(((result.natTraversal as any)?.relay) ?? {}), relayServers: value.split(',').map(s => s.trim()) },
+        };
+        break;
+      case 'relay-auto-register':
+        result.natTraversal = {
+          ...(result.natTraversal as object ?? {}),
+          relay: { ...(((result.natTraversal as any)?.relay) ?? {}), autoRegister: value !== 'false' },
+        };
+        break;
+
+      // Phase 2: Transports
+      case 'webtransport-enabled':
+        result.transports = {
+          ...(result.transports as object ?? {}),
+          webTransport: { ...(((result.transports as any)?.webTransport) ?? {}), enabled: value !== 'false' },
+        };
+        break;
+      case 'webtransport-cert':
+        result.transports = {
+          ...(result.transports as object ?? {}),
+          webTransport: { ...(((result.transports as any)?.webTransport) ?? {}), tlsCertPath: value },
+        };
+        break;
+      case 'webtransport-key':
+        result.transports = {
+          ...(result.transports as object ?? {}),
+          webTransport: { ...(((result.transports as any)?.webTransport) ?? {}), tlsKeyPath: value },
+        };
+        break;
+      case 'websocket-enabled':
+        result.transports = {
+          ...(result.transports as object ?? {}),
+          webSocket: { ...(((result.transports as any)?.webSocket) ?? {}), enabled: value !== 'false' },
+        };
+        break;
+      case 'websocket-tls':
+        result.transports = {
+          ...(result.transports as object ?? {}),
+          webSocket: { ...(((result.transports as any)?.webSocket) ?? {}), tls: value !== 'false' },
+        };
+        break;
+
+      // Phase 2: Discovery
+      case 'dht-mode':
+        result.discovery = {
+          ...(result.discovery as object ?? {}),
+          dht: { ...(((result.discovery as any)?.dht) ?? {}), mode: value },
+        };
+        break;
+
+      // Phase 2: Performance
+      case 'connection-pooling':
+        result.performance = {
+          ...(result.performance as object ?? {}),
+          connectionPooling: { ...(((result.performance as any)?.connectionPooling) ?? {}), enabled: value !== 'false' },
+        };
+        break;
+      case 'max-pool-size':
+        result.performance = {
+          ...(result.performance as object ?? {}),
+          connectionPooling: { ...(((result.performance as any)?.connectionPooling) ?? {}), maxPoolSize: parseInt(value, 10) },
+        };
+        break;
+
+      // Phase 2: Bootstrap
+      case 'bootstrap-nodes':
+        result.bootstrapPeers = value.split(',').map(s => s.trim()).filter(Boolean);
+        break;
     }
   }
 
@@ -90,6 +187,62 @@ function loadEnv(): Partial<NodeConfig> {
       broadcastMs: e.GNN_BROADCAST_TIMEOUT_MS ? parseInt(e.GNN_BROADCAST_TIMEOUT_MS, 10) : 1000,
       peerCheckIntervalSec: 30,
     };
+  }
+
+  // Phase 2: NAT Traversal env vars
+  if (e.GNN_NAT_ENABLED !== undefined || e.GNN_NAT_METHODS || e.GNN_UPNP_ENABLED ||
+      e.GNN_PMP_ENABLED || e.GNN_STUN_SERVERS || e.GNN_RELAY_SERVERS || e.GNN_RELAY_AUTO_REGISTER) {
+    const nat: Record<string, unknown> = {};
+    if (e.GNN_NAT_ENABLED !== undefined) nat.enabled = e.GNN_NAT_ENABLED !== 'false';
+    if (e.GNN_NAT_METHODS) nat.methods = e.GNN_NAT_METHODS.split(',').map(s => s.trim());
+    if (e.GNN_UPNP_ENABLED !== undefined) nat.upnp = { enabled: e.GNN_UPNP_ENABLED !== 'false' };
+    if (e.GNN_PMP_ENABLED !== undefined) nat.pmp = { enabled: e.GNN_PMP_ENABLED !== 'false' };
+    if (e.GNN_STUN_SERVERS) nat.stun = { servers: e.GNN_STUN_SERVERS.split(',').map(s => s.trim()) };
+    if (e.GNN_RELAY_SERVERS) nat.relay = { relayServers: e.GNN_RELAY_SERVERS.split(',').map(s => s.trim()) };
+    if (e.GNN_RELAY_AUTO_REGISTER !== undefined) {
+      nat.relay = { ...(nat.relay as object ?? {}), autoRegister: e.GNN_RELAY_AUTO_REGISTER !== 'false' };
+    }
+    result.natTraversal = nat;
+  }
+
+  // Phase 2: Transport env vars
+  if (e.GNN_WEBTRANSPORT_ENABLED !== undefined || e.GNN_WEBTRANSPORT_PORT ||
+      e.GNN_WEBTRANSPORT_TLS_CERT || e.GNN_WEBTRANSPORT_TLS_KEY || e.GNN_WEBTRANSPORT_SELF_SIGNED) {
+    const wt: Record<string, unknown> = {};
+    if (e.GNN_WEBTRANSPORT_ENABLED !== undefined) wt.enabled = e.GNN_WEBTRANSPORT_ENABLED !== 'false';
+    if (e.GNN_WEBTRANSPORT_PORT) wt.port = parseInt(e.GNN_WEBTRANSPORT_PORT, 10);
+    if (e.GNN_WEBTRANSPORT_TLS_CERT) wt.tlsCertPath = e.GNN_WEBTRANSPORT_TLS_CERT;
+    if (e.GNN_WEBTRANSPORT_TLS_KEY) wt.tlsKeyPath = e.GNN_WEBTRANSPORT_TLS_KEY;
+    if (e.GNN_WEBTRANSPORT_SELF_SIGNED) wt.generateSelfSigned = e.GNN_WEBTRANSPORT_SELF_SIGNED !== 'false';
+    result.transports = { ...(result.transports as object ?? {}), webTransport: wt };
+  }
+
+  // Phase 2: Discovery env vars
+  if (e.GNN_DHT_MODE) {
+    result.discovery = { ...(result.discovery as object ?? {}), dht: { mode: e.GNN_DHT_MODE } };
+  }
+  if (e.GNN_DNS_ENABLED !== undefined || e.GNN_DNS_SERVERS) {
+    const dns: Record<string, unknown> = {};
+    if (e.GNN_DNS_ENABLED !== undefined) dns.enabled = e.GNN_DNS_ENABLED !== 'false';
+    if (e.GNN_DNS_SERVERS) dns.servers = e.GNN_DNS_SERVERS.split(',').map(s => s.trim());
+    result.discovery = { ...(result.discovery as object ?? {}), dns };
+  }
+
+  // Phase 2: Performance env vars
+  if (e.GNN_CONNECTION_POOLING !== undefined || e.GNN_MAX_POOL_SIZE || e.GNN_MULTIPLEXING_ENABLED) {
+    const perf: Record<string, unknown> = {};
+    if (e.GNN_CONNECTION_POOLING !== undefined || e.GNN_MAX_POOL_SIZE) {
+      const cp: Record<string, unknown> = {};
+      if (e.GNN_CONNECTION_POOLING !== undefined) cp.enabled = e.GNN_CONNECTION_POOLING !== 'false';
+      if (e.GNN_MAX_POOL_SIZE) cp.maxPoolSize = parseInt(e.GNN_MAX_POOL_SIZE, 10);
+      perf.connectionPooling = cp;
+    }
+    if (e.GNN_MULTIPLEXING_ENABLED !== undefined || e.GNN_MAX_STREAMS_PER_CONN) {
+      const mx: Record<string, unknown> = {};
+      if (e.GNN_MAX_STREAMS_PER_CONN) mx.maxStreamsPerConnection = parseInt(e.GNN_MAX_STREAMS_PER_CONN, 10);
+      perf.multiplexing = mx;
+    }
+    result.performance = perf;
   }
 
   return result as Partial<NodeConfig>;

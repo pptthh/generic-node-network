@@ -14,7 +14,17 @@ async function makeConfig(nodeId: string, apiPort: number, p2pPort: number): Pro
     bootstrapPeers: [],
     configFile: `./gnn-conf-${nodeId}.json`,
     dbPath: `./gnn-data-${nodeId}-test`,
-    discovery: { mdnsEnabled: true, dhtEnabled: false },
+    discovery: { ...defaults.discovery, mdnsEnabled: true, dhtEnabled: false },
+    natTraversal: { ...defaults.natTraversal!, enabled: false },
+    transports: {
+      ...defaults.transports!,
+      tcp: { ...defaults.transports!.tcp, port: p2pPort },
+      webSocket: { ...defaults.transports!.webSocket, enabled: false },
+    },
+    monitoring: {
+      reachabilityCheck: { enabled: false, interval: 300000, peerSamples: 5 },
+      connectivityMetrics: { enabled: false, sampleInterval: 60000 },
+    },
   };
 }
 

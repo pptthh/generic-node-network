@@ -45,7 +45,11 @@
     ".next/node-e/types/**/*.ts",
     ".next/node-e/dev/types/**/*.ts",
     ".next/e2e-test/types/**/*.ts",
-    ".next/e2e-test/dev/types/**/*.ts"
+    ".next/e2e-test/dev/types/**/*.ts",
+    ".next/0a7be8c7-553c-4283-9c9f-2904cc6444a0/types/**/*.ts",
+    ".next/0a7be8c7-553c-4283-9c9f-2904cc6444a0/dev/types/**/*.ts",
+    ".next/da5bd613-ff2b-4a13-97bd-b14d360ce06c/types/**/*.ts",
+    ".next/da5bd613-ff2b-4a13-97bd-b14d360ce06c/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

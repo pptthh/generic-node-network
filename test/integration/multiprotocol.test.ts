@@ -50,7 +50,7 @@ describe('Multi-Protocol Integration', () => {
     for (const node of nodes) {
       if (node.isRunning()) await node.stop();
     }
-  });
+  }, 15000);
 
   it('should connect two nodes via TCP', async () => {
     const configA = await createTestConfig('mp-node-a', 35111, 38111);

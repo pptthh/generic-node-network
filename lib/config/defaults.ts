@@ -1,4 +1,5 @@
 import { createServer } from 'net';
+import { createHash } from 'crypto';
 import type { NodeConfig } from '../types/config.js';
 
 function isPortAvailable(port: number): Promise<boolean> {
@@ -17,10 +18,22 @@ async function findAvailablePort(startPort: number): Promise<number> {
   throw new Error(`No available port found starting from ${startPort}`);
 }
 
+/**
+ * Compute a deterministic port offset (0–900) from a nodeId string.
+ * Uses SHA256 so different nodeIds reliably produce different offsets.
+ */
+function nodeIdPortOffset(nodeId: string): number {
+  const hash = createHash('sha256').update(nodeId).digest();
+  // Use first 2 bytes as a uint16, then clamp to 0–900
+  const raw = (hash[0] << 8) | hash[1];
+  return raw % 901; // 0–900 inclusive
+}
+
 export async function getDefaults(nodeId?: string): Promise<Omit<NodeConfig, 'nodeId' | 'apiToken' | 'configFile' | 'dbPath'>> {
+  const offset = nodeId ? nodeIdPortOffset(nodeId) : 0;
   const [apiPort, p2pPort] = await Promise.all([
-    findAvailablePort(25111),
-    findAvailablePort(28111),
+    findAvailablePort(25111 + offset),
+    findAvailablePort(28111 + offset),
   ]);
   return {
     apiPort,

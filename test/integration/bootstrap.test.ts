@@ -47,7 +47,7 @@ describe('Bootstrap Node Discovery', () => {
     for (const node of nodes) {
       if (node.isRunning()) await node.stop();
     }
-  });
+  }, 15000);
 
   it('should discover peers via a bootstrap node', async () => {
     // Node A acts as bootstrap

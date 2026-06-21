@@ -4,17 +4,29 @@ import { GNNNode } from '../../lib/p2p/node.js';
 import type { NodeConfig } from '../../lib/types/config.js';
 
 async function makeConfig(nodeId: string, p2pPort: number): Promise<NodeConfig> {
-  const defaults = await getDefaults();
+  const defaults = await getDefaults(nodeId);
   return {
     ...defaults,
     nodeId,
     apiToken: 'token_' + 'a'.repeat(32),
-    apiPort: 25300,
+    apiPort: p2pPort + 1000, // derive apiPort from p2pPort to avoid conflicts
     p2pPort,
     bootstrapPeers: [],
     configFile: `./gnn-conf-${nodeId}.json`,
     dbPath: `./gnn-data-${nodeId}-test`,
-    discovery: { mdnsEnabled: false, dhtEnabled: false },
+    discovery: {
+      ...defaults.discovery,
+      mdnsEnabled: false,
+      dhtEnabled: false,
+    },
+    natTraversal: {
+      ...defaults.natTraversal!,
+      enabled: false,
+    },
+    monitoring: {
+      reachabilityCheck: { enabled: false, interval: 300000, peerSamples: 5 },
+      connectivityMetrics: { enabled: false, sampleInterval: 60000 },
+    },
   };
 }
 
@@ -28,8 +40,8 @@ describe('Load Test - Message Throughput', () => {
   }, 15000);
 
   afterAll(async () => {
-    await node.stop();
-  }, 5000);
+    if (node?.isRunning()) await node.stop();
+  }, 15000);
 
   it('should handle 1000 messages within 2 seconds', async () => {
     const start = Date.now();

@@ -12,6 +12,11 @@ export const PublishedMessageSchema = z.object({
   publicKey: z.string().optional(),
   signature: z.string().optional(),
   version: z.number().optional(),
+  // Phase 4: Compression metadata (optional)
+  compressed: z.boolean().optional(),
+  compressionAlgorithm: z.enum(['gzip', 'brotli', 'zstd']).optional(),
+  originalSize: z.number().optional(),
+  compressedSize: z.number().optional(),
 });
 
 export const QueryMessageSchema = z.object({

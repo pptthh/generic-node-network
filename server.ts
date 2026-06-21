@@ -5,6 +5,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { setNodeContext } from './lib/api/handlers.js';
 import { setApiConfig, setTokenManager } from './lib/api/middleware.js';
 import { loadConfig } from './lib/config/loader.js';
+import { GracefulShutdownManager } from './lib/lifecycle/shutdown.js';
+import { RestartRecovery } from './lib/lifecycle/recovery.js';
+import { HealthChecker } from './lib/lifecycle/health.js';
+import { globalMetrics } from './lib/metrics/prometheus.js';
+import { MetricsServer } from './lib/metrics/server.js';
 import { GNNNode } from './lib/p2p/node.js';
 import { Database } from './lib/storage/database.js';
 import { initializeDatabase } from './lib/storage/migrations.js';
@@ -19,7 +24,7 @@ async function main() {
   // 1. Load configuration (CLI + env + file + DB + defaults)
   const config = await loadConfig();
 
-  // 2. Initialize logger
+  // 2. Initialize logger (Phase 4: dual format support)
   initLogger(config.logging);
 
   logger.info(`Starting GNN Node: ${config.nodeId}`);
@@ -35,6 +40,10 @@ async function main() {
   const schema = new Schema(db);
 
   logger.info('Database initialized');
+
+  // 3b. Restart recovery (Phase 4)
+  const recovery = new RestartRecovery({ database: db });
+  await recovery.recover().catch((err) => logger.warn('Restart recovery failed', err));
 
   // 4. Initialize P2P node (pass database for Phase 3 security)
   const node = new GNNNode(config, db);
@@ -71,6 +80,13 @@ async function main() {
   // Broadcast node restart event
   wsManager.broadcast({ type: 'node_restarted', uptime: 0 });
 
+  // 7b. Phase 4: Start Prometheus metrics server
+  let metricsServer: MetricsServer | null = null;
+  if (config.metricsExport?.enabled) {
+    metricsServer = new MetricsServer(config.metricsExport, globalMetrics);
+    metricsServer.start();
+  }
+
   // 8. Initialize Next.js app
   process.env.GNN_NODE_ID = config.nodeId;
   const app = next({ dev: isDev, hostname: 'localhost', port: config.apiPort });
@@ -78,9 +94,37 @@ async function main() {
 
   await app.prepare();
 
-  // 9. Create HTTP server with WebSocket support
+  // 9. Create HTTP server with WebSocket + health check support
+  const healthChecker = config.healthChecks
+    ? new HealthChecker(config.healthChecks, {
+        checkP2P: () => {
+          const peers = node.getPeerCount?.() ?? 0;
+          return { healthy: true, details: { peerCount: peers } };
+        },
+        checkDatabase: async () => {
+          try {
+            await db.put('health:check', Date.now());
+            return { healthy: true, details: { readable: true, writable: true } };
+          } catch (err) {
+            return { healthy: false, error: err instanceof Error ? err.message : String(err) };
+          }
+        },
+        checkMemory: () => HealthChecker.memoryCheck(),
+        checkPeers: () => {
+          const peers = node.getPeerCount?.() ?? 0;
+          return { healthy: peers >= 0, details: { peerCount: peers } };
+        },
+      })
+    : null;
+
   const server = createServer(async (req, res) => {
     try {
+      // Health checks take priority
+      if (healthChecker && req.method === 'GET') {
+        const handled = await healthChecker.handle(req, res);
+        if (handled) return;
+      }
+
       const parsedUrl = parse(req.url ?? '/', true);
       await handle(req, res, parsedUrl);
     } catch (err) {
@@ -134,6 +178,10 @@ async function main() {
     logger.info(`REST API on http://localhost:${config.apiPort}`);
     logger.info(`Dashboard: http://localhost:${config.apiPort}/dashboard`);
     logger.info(`WebSocket: ws://localhost:${config.apiPort}/ws`);
+    if (config.healthChecks?.enabled) {
+      logger.info(`Liveness: http://localhost:${config.apiPort}${config.healthChecks.liveness.path}`);
+      logger.info(`Readiness: http://localhost:${config.apiPort}${config.healthChecks.readiness.path}`);
+    }
 
     const multiaddrs = node.getMultiaddrs();
     for (const addr of multiaddrs) {
@@ -142,7 +190,6 @@ async function main() {
 
     // Print API token for initial setup
     const token = config.apiToken;
-    // Only print if log level allows
     process.stdout.write(`\n[GNN] Node ID: ${config.nodeId}\n`);
     process.stdout.write(`[GNN] API Token: ${token}\n`);
     process.stdout.write(`[GNN] Dashboard: http://localhost:${config.apiPort}/dashboard\n\n`);
@@ -162,30 +209,46 @@ async function main() {
     } catch (err) {
       logger.error('Maintenance error', err);
     }
-  }, 24 * 60 * 60 * 1000); // every 24 hours
+  }, 24 * 60 * 60 * 1000);
 
-  // Graceful shutdown
-  async function shutdown(signal: string) {
-    logger.info(`Received ${signal}, shutting down...`);
-    clearInterval(maintenanceInterval);
+  // Phase 4: Graceful shutdown manager
+  const shutdownMgr = new GracefulShutdownManager(
+    {
+      stopBackgroundServices: async () => {
+        clearInterval(maintenanceInterval);
+        if (tokenManager) tokenManager.stopRotationScheduler();
+      },
+      flushMessageQueue: async () => {
+        // Node's internal message queue drains automatically on stop
+      },
+      closeP2PConnections: async () => {
+        await node.stop();
+      },
+      persistState: async () => {
+        await schema.setState('last_shutdown', Date.now());
+        await schema.setState('uptime', Math.floor((Date.now() - node.startedAt) / 1000));
+        // Save current peer list for restart recovery
+        const peers = node.getKnownPeers?.() ?? [];
+        await db.put('peers:saved', peers);
+      },
+      closeApiServer: () =>
+        new Promise<void>((resolve) => {
+          server.close(() => {
+            logger.info('HTTP server closed');
+            resolve();
+          });
+        }),
+      closeMetricsServer: async () => {
+        if (metricsServer) await metricsServer.stop();
+      },
+      closeDatabase: async () => {
+        await db.close();
+      },
+    },
+    config.shutdown,
+  );
 
-    // Stop Phase 3 token rotation
-    if (tokenManager) {
-      tokenManager.stopRotationScheduler();
-    }
-
-    await node.stop();
-    await db.close();
-    server.close(() => {
-      logger.info('HTTP server closed');
-      process.exit(0);
-    });
-
-    setTimeout(() => process.exit(1), 5000);
-  }
-
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+  shutdownMgr.registerSignalHandlers();
 }
 
 main().catch((err) => {

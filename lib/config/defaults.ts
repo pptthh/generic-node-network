@@ -278,5 +278,75 @@ export async function getDefaults(nodeId?: string): Promise<Omit<NodeConfig, 'no
         malformedMessagePenalty: -10,
       },
     },
+
+    // Phase 4 defaults
+    compression: {
+      enabled: true,
+      algorithm: 'auto',
+      algorithms: {
+        gzip: { enabled: true, level: 6, threshold: 2048 },
+        brotli: { enabled: true, level: 6, threshold: 2048 },
+        zstd: { enabled: true, level: 6, threshold: 2048 },
+      },
+      selectionStrategy: 'adaptive',
+      compressionThreshold: 2048,
+      blacklist: ['application/octet-stream', 'image/*', 'video/*'],
+    },
+    retryLogic: {
+      enabled: true,
+      strategies: {
+        exponentialBackoff: {
+          enabled: true,
+          initialDelayMs: 100,
+          maxDelayMs: 30000,
+          multiplier: 2,
+          jitter: true,
+          jitterFactor: 0.1,
+        },
+        circuitBreaker: {
+          enabled: true,
+          failureThreshold: 5,
+          successThreshold: 2,
+          timeout: 60000,
+          halfOpenRequests: 1,
+        },
+        adaptiveRetry: {
+          enabled: true,
+          baseRetries: 3,
+          maxRetries: 10,
+          backoffMultiplier: 1.5,
+          timeoutMultiplier: 1.2,
+        },
+      },
+      perMessageType: {
+        publish: { maxRetries: 3, timeout: 5000 },
+        query: { maxRetries: 5, timeout: 10000 },
+        response: { maxRetries: 2, timeout: 3000 },
+      },
+    },
+    metricsExport: {
+      enabled: true,
+      exportFormat: 'prometheus',
+      exportInterval: 60000,
+      metricsPort: 9090,
+      pushgateway: null,
+    },
+    shutdown: {
+      gracefulTimeout: 30000,
+      timeoutAction: 'force_kill',
+      signalHandlers: true,
+      cleanupSteps: [
+        'flush_in_memory_queues',
+        'close_connections',
+        'persist_state',
+        'close_database',
+      ],
+    },
+    healthChecks: {
+      enabled: true,
+      interval: 10000,
+      liveness: { enabled: true, path: '/healthz' },
+      readiness: { enabled: true, path: '/readyz' },
+    },
   };
 }

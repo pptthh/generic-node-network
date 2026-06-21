@@ -3,6 +3,20 @@ export interface LoggingConfig {
   file: string | null;
   maxSizeKB: number;
   retentionDays: number;
+  // Phase 4: dual-format logging
+  formats?: ('human' | 'json')[];
+  levels?: {
+    human?: 'debug' | 'info' | 'warn' | 'error';
+    json?: 'debug' | 'info' | 'warn' | 'error';
+  };
+  files?: {
+    human: string;
+    json: string;
+  };
+  rotation?: {
+    maxSizeKB: number;
+    retentionDays: number;
+  };
 }
 
 export interface MessageConfig {
@@ -319,6 +333,111 @@ export interface RateLimitingConfig {
   spam: SpamConfig;
 }
 
+// --- Phase 4: Compression ---
+
+export interface CompressionAlgorithmConfig {
+  enabled: boolean;
+  level: number;
+  threshold: number;
+}
+
+export interface CompressionConfig {
+  enabled: boolean;
+  algorithm: 'auto' | 'gzip' | 'brotli' | 'zstd';
+  algorithms: {
+    gzip: CompressionAlgorithmConfig;
+    brotli: CompressionAlgorithmConfig;
+    zstd: CompressionAlgorithmConfig;
+  };
+  selectionStrategy: 'adaptive' | 'static';
+  compressionThreshold: number;
+  blacklist: string[];
+}
+
+// --- Phase 4: Retry Logic ---
+
+export interface ExponentialBackoffConfig {
+  enabled: boolean;
+  initialDelayMs: number;
+  maxDelayMs: number;
+  multiplier: number;
+  jitter: boolean;
+  jitterFactor: number;
+}
+
+export interface CircuitBreakerConfig {
+  enabled: boolean;
+  failureThreshold: number;
+  successThreshold: number;
+  timeout: number;
+  halfOpenRequests: number;
+}
+
+export interface AdaptiveRetryConfig {
+  enabled: boolean;
+  baseRetries: number;
+  maxRetries: number;
+  backoffMultiplier: number;
+  timeoutMultiplier: number;
+}
+
+export interface PerMessageTypeRetryConfig {
+  maxRetries: number;
+  timeout: number;
+}
+
+export interface RetryLogicConfig {
+  enabled: boolean;
+  strategies: {
+    exponentialBackoff: ExponentialBackoffConfig;
+    circuitBreaker: CircuitBreakerConfig;
+    adaptiveRetry: AdaptiveRetryConfig;
+  };
+  perMessageType: {
+    publish: PerMessageTypeRetryConfig;
+    query: PerMessageTypeRetryConfig;
+    response: PerMessageTypeRetryConfig;
+  };
+}
+
+// --- Phase 4: Metrics Export ---
+
+export interface MetricsExportConfig {
+  enabled: boolean;
+  exportFormat: 'prometheus';
+  exportInterval: number;
+  metricsPort: number;
+  pushgateway: string | null;
+}
+
+// --- Phase 4: Graceful Shutdown ---
+
+export interface ShutdownConfig {
+  gracefulTimeout: number;
+  timeoutAction: 'force_kill' | 'log_only';
+  signalHandlers: boolean;
+  cleanupSteps: (
+    | 'flush_in_memory_queues'
+    | 'close_connections'
+    | 'persist_state'
+    | 'close_database'
+  )[];
+}
+
+// --- Phase 4: Health Checks ---
+
+export interface HealthCheckEndpointConfig {
+  enabled: boolean;
+  path: string;
+}
+
+export interface HealthChecksConfig {
+  enabled: boolean;
+  interval: number;
+  liveness: HealthCheckEndpointConfig;
+  readiness: HealthCheckEndpointConfig;
+}
+
 // --- Main NodeConfig ---
 
 export interface NodeConfig {
@@ -351,4 +470,11 @@ export interface NodeConfig {
   blocklist?: BlocklistConfig;
   apiTokens?: ApiTokensConfig;
   rateLimiting?: RateLimitingConfig;
+
+  // Phase 4 (optional for backward compat)
+  compression?: CompressionConfig;
+  retryLogic?: RetryLogicConfig;
+  metricsExport?: MetricsExportConfig;
+  shutdown?: ShutdownConfig;
+  healthChecks?: HealthChecksConfig;
 }

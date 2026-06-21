@@ -36,6 +36,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@bokuweb/zstd-wasm": "^0.0.27",
     "@chainsafe/libp2p-gossipsub": "^14.1.2",
     "@chainsafe/libp2p-noise": "^17.0.0",
     "@chainsafe/libp2p-yamux": "^8.0.1",
@@ -50,6 +51,7 @@
     "@libp2p/websockets": "^10.1.15",
     "@tailwindcss/postcss": "^4.3.1",
     "autoprefixer": "^10.5.0",
+    "fzstd": "^0.1.1",
     "level": "^10.0.0",
     "libp2p": "^3.3.4",
     "nat-api": "^0.3.1",

@@ -686,6 +686,19 @@ export class GNNNode extends EventEmitter {
     return [...this.peers.values()];
   }
 
+  /** Phase 4: Returns the number of currently connected peers. */
+  getPeerCount(): number {
+    return this.peers.size;
+  }
+
+  /** Phase 4: Returns the known peer list for restart recovery. */
+  getKnownPeers(): Array<{ peerId: string; multiaddr: string }> {
+    return [...this.peers.values()].map((p) => ({
+      peerId: p.peerId,
+      multiaddr: p.multiaddr,
+    }));
+  }
+
   getMultiaddrs(): string[] {
     return this.libp2p?.getMultiaddrs().map(m => m.toString()) ?? [];
   }

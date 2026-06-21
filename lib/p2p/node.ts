@@ -14,7 +14,7 @@ import { EventEmitter } from 'events';
 import { createLibp2p } from 'libp2p';
 import { v4 as uuidv4 } from 'uuid';
 import type { NodeConfig } from '../types/config.js';
-import type { PeerResponse, PublishedMessage } from '../types/messages.js';
+import type { GNNMessage, PeerResponse, PublishedMessage, SignedGNNMessage } from '../types/messages.js';
 import type { Peer } from '../types/peers.js';
 import { logger } from '../utils/logger.js';
 import { nowMs } from '../utils/time.js';
@@ -27,6 +27,15 @@ import { ReachabilityChecker } from './reachability.js';
 import { BootstrapManager } from './bootstrap.js';
 import { MetricsCollector, type MetricsSnapshot, type ConnectivitySummary } from './metrics.js';
 import { connectWithFailover, type ConnectionAttemptResult } from './connection/failover.js';
+// Phase 3: Security imports
+import { signMessage, isSignedMessage } from '../security/crypto/signing.js';
+import { KeyManager } from '../security/crypto/keys.js';
+import { ReputationSystem } from '../security/reputation/system.js';
+import { BlocklistManager } from '../security/blocklist/manager.js';
+import { RateLimiter } from '../security/ratelimit/limiter.js';
+import { MessageVerificationPipeline } from '../security/verification/pipeline.js';
+import type { Database } from '../storage/database.js';
+import type { NodeKeyPair } from '../security/types.js';
 
 const MAX_QUEUE_SIZE = 1000;
 
@@ -51,10 +60,20 @@ export class GNNNode extends EventEmitter {
   private bootstrapManager: BootstrapManager | null = null;
   private metricsCollector: MetricsCollector | null = null;
 
-  constructor(config: NodeConfig) {
+  // Phase 3: Security modules
+  private keyManager: KeyManager | null = null;
+  private keyPair: NodeKeyPair | null = null;
+  private reputationSystem: ReputationSystem | null = null;
+  private blocklistManager: BlocklistManager | null = null;
+  private rateLimiter: RateLimiter | null = null;
+  private verificationPipeline: MessageVerificationPipeline | null = null;
+  private db: Database | null = null;
+
+  constructor(config: NodeConfig, db?: Database) {
     super();
     this.config = config;
     this.startedAt = nowMs();
+    this.db = db ?? null;
   }
 
   async start(): Promise<void> {
@@ -209,12 +228,25 @@ export class GNNNode extends EventEmitter {
         const msg = evt.detail as { topic: string; data: Uint8Array };
         const decoded = JSON.parse(new TextDecoder().decode(msg.data)) as PublishedMessage;
         if (decoded.type === 'publish') {
-          if (this.messageQueue.length >= MAX_QUEUE_SIZE) {
-            this.messageQueue.shift();
+          // Phase 3: Verify incoming message if verification pipeline is active
+          if (this.verificationPipeline) {
+            this.verificationPipeline.verify(decoded as GNNMessage).then(result => {
+              if (!result.accepted) {
+                logger.debug('Message rejected by verification pipeline', {
+                  reason: result.reason,
+                  sender: decoded.sender,
+                });
+                return;
+              }
+              this.enqueueMessage(decoded);
+            }).catch(err => {
+              logger.error('Verification pipeline error', err);
+              // Accept message on pipeline error (fail-open for availability)
+              this.enqueueMessage(decoded);
+            });
+          } else {
+            this.enqueueMessage(decoded);
           }
-          this.messageQueue.push(decoded);
-          this.emit('message', decoded);
-          logger.debug(`Received published message on topic: ${decoded.topic}`);
         }
       } catch (err) {
         logger.error('Failed to decode pubsub message', err);
@@ -315,6 +347,12 @@ export class GNNNode extends EventEmitter {
 
     // --- End Phase 2 sub-modules ---
 
+    // --- Phase 3: Security Initialization ---
+    if (this.db && this.config.security?.mode === 'adversarial') {
+      await this.initializeSecurity();
+    }
+    // --- End Phase 3 ---
+
     // Connect bootstrap peers (legacy format)
     for (const addr of this.config.bootstrapPeers) {
       try {
@@ -371,6 +409,17 @@ export class GNNNode extends EventEmitter {
       this.metricsCollector = null;
     }
 
+    // Stop Phase 3 modules
+    if (this.rateLimiter) {
+      this.rateLimiter.stop();
+      this.rateLimiter = null;
+    }
+    this.verificationPipeline = null;
+    this.reputationSystem = null;
+    this.blocklistManager = null;
+    this.keyManager = null;
+    this.keyPair = null;
+
     if (this.libp2p) {
       await this.libp2p.stop();
       this.libp2p = null;
@@ -381,7 +430,7 @@ export class GNNNode extends EventEmitter {
   async publish(topic: string, payload: unknown, ttl?: number): Promise<string> {
     const pubsub = this.getPubsub();
     const messageId = `msg_${uuidv4().replace(/-/g, '').slice(0, 12)}`;
-    const msg: PublishedMessage = {
+    let msg: PublishedMessage = {
       type: 'publish',
       messageId,
       topic,
@@ -390,6 +439,11 @@ export class GNNNode extends EventEmitter {
       timestamp: nowMs(),
       ttl: ttl ?? null,
     };
+
+    // Phase 3: Sign message if in adversarial mode
+    if (this.keyPair && this.config.security?.mode === 'adversarial') {
+      msg = signMessage(msg, this.keyPair.privateKey, this.keyPair.publicKeyBase64) as PublishedMessage;
+    }
 
     const encoded = new TextEncoder().encode(JSON.stringify(msg));
     await pubsub.publish(topic, encoded);
@@ -644,8 +698,68 @@ export class GNNNode extends EventEmitter {
     return this.libp2p?.peerId.toString() ?? '';
   }
 
+  /**
+   * Get the cryptographic peer ID (Phase 3).
+   */
+  getCryptoPeerId(): string | null {
+    return this.keyPair?.cryptoPeerId ?? null;
+  }
+
   isRunning(): boolean {
     return this.libp2p !== null;
+  }
+
+  // --- Phase 3: Security Public API ---
+
+  /**
+   * Get the reputation system instance.
+   */
+  getReputationSystem(): ReputationSystem | null {
+    return this.reputationSystem;
+  }
+
+  /**
+   * Get the blocklist manager instance.
+   */
+  getBlocklistManager(): BlocklistManager | null {
+    return this.blocklistManager;
+  }
+
+  /**
+   * Get the rate limiter instance.
+   */
+  getRateLimiter(): RateLimiter | null {
+    return this.rateLimiter;
+  }
+
+  /**
+   * Get the verification pipeline instance.
+   */
+  getVerificationPipeline(): MessageVerificationPipeline | null {
+    return this.verificationPipeline;
+  }
+
+  /**
+   * Get the key manager instance.
+   */
+  getKeyManager(): KeyManager | null {
+    return this.keyManager;
+  }
+
+  /**
+   * Get peer reputation score.
+   */
+  async getPeerReputation(peerId: string): Promise<number> {
+    if (!this.reputationSystem) return 50; // default neutral
+    return this.reputationSystem.getScore(peerId);
+  }
+
+  /**
+   * Check if peer is blocklisted.
+   */
+  isPeerBlocklisted(peerId: string): boolean {
+    if (!this.blocklistManager) return false;
+    return this.blocklistManager.isBlocklisted(peerId);
   }
 
   private getPubsub(): {
@@ -734,6 +848,71 @@ export class GNNNode extends EventEmitter {
       if (peer.status === 'offline' && now - peer.lastSeen > 5 * 60 * 1000) {
         this.peers.delete(peerId);
       }
+    }
+  }
+
+  // --- Phase 3: Private Security Methods ---
+
+  private enqueueMessage(decoded: PublishedMessage): void {
+    if (this.messageQueue.length >= MAX_QUEUE_SIZE) {
+      this.messageQueue.shift();
+    }
+    this.messageQueue.push(decoded);
+    this.emit('message', decoded);
+    logger.debug(`Received published message on topic: ${decoded.topic}`);
+  }
+
+  private async initializeSecurity(): Promise<void> {
+    if (!this.db) {
+      logger.warn('Database not available, skipping security initialization');
+      return;
+    }
+
+    const securityConfig = this.config.security ?? { mode: 'adversarial', defaultTrust: false };
+    const cryptoConfig = this.config.cryptography;
+    const reputationConfig = this.config.reputation;
+    const blocklistConfig = this.config.blocklist;
+    const rateLimitConfig = this.config.rateLimiting;
+
+    // 1. Initialize Key Manager
+    if (cryptoConfig) {
+      this.keyManager = new KeyManager({
+        keyDir: cryptoConfig.keyStorage.path,
+        nodeId: this.config.nodeId,
+      });
+      this.keyPair = await this.keyManager.initialize();
+      logger.info('Security: Key manager initialized', { cryptoPeerId: this.keyPair.cryptoPeerId });
+    }
+
+    // 2. Initialize Reputation System
+    if (reputationConfig?.enabled) {
+      this.reputationSystem = new ReputationSystem(reputationConfig, this.db);
+      logger.info('Security: Reputation system initialized');
+    }
+
+    // 3. Initialize Blocklist Manager
+    if (blocklistConfig?.enabled) {
+      this.blocklistManager = new BlocklistManager(blocklistConfig, this.db);
+      await this.blocklistManager.initialize();
+      logger.info('Security: Blocklist manager initialized');
+    }
+
+    // 4. Initialize Rate Limiter
+    if (rateLimitConfig?.enabled) {
+      this.rateLimiter = new RateLimiter(rateLimitConfig);
+      this.rateLimiter.start();
+      logger.info('Security: Rate limiter initialized');
+    }
+
+    // 5. Initialize Verification Pipeline
+    if (this.reputationSystem && this.blocklistManager && this.rateLimiter) {
+      this.verificationPipeline = new MessageVerificationPipeline({
+        securityConfig,
+        reputationSystem: this.reputationSystem,
+        blocklistManager: this.blocklistManager,
+        rateLimiter: this.rateLimiter,
+      });
+      logger.info('Security: Verification pipeline initialized');
     }
   }
 }

@@ -196,6 +196,129 @@ export interface ConnectionStrategyConfig {
   transports: TransportStrategy[];
 }
 
+// --- Phase 3: Security & Cryptography ---
+
+export interface KeyStorageConfig {
+  type: 'encrypted-file';
+  path: string;
+  encryptionAlgorithm: 'aes-256-gcm';
+  encryptionKeyDerivation: 'scrypt';
+  backupEnabled: boolean;
+  backupPath: string;
+}
+
+export interface KeyRotationConfig {
+  enabled: boolean;
+  rotationIntervalDays: number;
+  rotationInterval: number;
+  retainOldKeys: number;
+  retentionDays: number;
+  gracePeriodDays: number;
+  gracePeriod: number;
+}
+
+export interface SigningConfig {
+  algorithm: 'Ed25519';
+  hashAlgorithm: 'SHA256';
+}
+
+export interface MTLSConfig {
+  enabled: boolean;
+  mode: 'optional' | 'required';
+  trustStore: string;
+}
+
+export interface TLSSecurityConfig {
+  minVersion: '1.3';
+  cipherSuites: string[];
+  mTLS: MTLSConfig;
+}
+
+export interface CryptographyConfig {
+  keyStorage: KeyStorageConfig;
+  keyRotation: KeyRotationConfig;
+  signing: SigningConfig;
+  tls: TLSSecurityConfig;
+}
+
+export interface SecurityConfig {
+  mode: 'trusted' | 'adversarial';
+  defaultTrust: boolean;
+}
+
+export interface ReputationFactorsConfig {
+  validMessageBenefit: number;
+  invalidMessagePenalty: number;
+  signatureFailPenalty: number;
+  spamPenalty: number;
+  timeoutPenalty: number;
+  uptimeBonus: number;
+  latencyBonus: {
+    under50ms: number;
+    under100ms: number;
+    over500ms: number;
+  };
+}
+
+export interface ReputationConfig {
+  enabled: boolean;
+  initialScore: number;
+  minScore: number;
+  maxScore: number;
+  decayInterval: number;
+  decayRate: number;
+  factors: ReputationFactorsConfig;
+}
+
+export interface BlocklistConfig {
+  enabled: boolean;
+  types: ('reputation-based' | 'manual' | 'community-fed')[];
+  storage: {
+    local: string;
+  };
+  updateInterval: number;
+}
+
+export interface ApiTokensConfig {
+  rotationEnabled: boolean;
+  tokenTTL: number;
+  tokenTTLDays: number;
+  rotationInterval: number;
+  rotationIntervalDays: number;
+  gracePeriod: number;
+  gracePeriodDays: number;
+  maxTokensKept: number;
+  hashAlgorithm: 'sha256';
+  tokenLength: number;
+}
+
+export interface PerPeerRateLimitConfig {
+  messagesPerSecond: number;
+  queriesPerSecond: number;
+  connectionAttemptsPerMinute: number;
+  windowSizeMs: number;
+}
+
+export interface GlobalRateLimitConfig {
+  messagesPerSecond: number;
+  windowSizeMs: number;
+}
+
+export interface SpamConfig {
+  duplicateMessageThreshold: number;
+  duplicateWindowMs: number;
+  largePayloadThreshold: number;
+  largePayloadPenalty: number;
+  malformedMessagePenalty: number;
+}
+
+export interface RateLimitingConfig {
+  enabled: boolean;
+  perPeer: PerPeerRateLimitConfig;
+  global: GlobalRateLimitConfig;
+  spam: SpamConfig;
+}
+
 // --- Main NodeConfig ---
 
 export interface NodeConfig {
@@ -220,4 +343,12 @@ export interface NodeConfig {
   monitoring?: MonitoringConfig;
   publicBootstrapNodes?: BootstrapNodeEntry[];
   connectionStrategy?: ConnectionStrategyConfig;
+
+  // Phase 3 (optional for backward compat)
+  security?: SecurityConfig;
+  cryptography?: CryptographyConfig;
+  reputation?: ReputationConfig;
+  blocklist?: BlocklistConfig;
+  apiTokens?: ApiTokensConfig;
+  rateLimiting?: RateLimitingConfig;
 }

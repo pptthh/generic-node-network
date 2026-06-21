@@ -2,6 +2,35 @@ export * from './config.js';
 export * from './messages.js';
 export * from './peers.js';
 
+// Re-export Phase 3 security types
+export type {
+  SecurityConfig,
+  CryptographyConfig,
+  KeyStorageConfig,
+  KeyRotationConfig,
+  SigningConfig,
+  MTLSConfig,
+  TLSSecurityConfig,
+  ReputationConfig,
+  ReputationFactorsConfig,
+  BlocklistConfig,
+  ApiTokensConfig,
+  RateLimitingConfig,
+  PerPeerRateLimitConfig,
+  GlobalRateLimitConfig,
+  SpamConfig,
+} from './config.js';
+
+export type {
+  SignedMessageFields,
+  SignedPublishedMessage,
+  SignedQueryMessage,
+  SignedResponseMessage,
+  SignedGNNMessage,
+} from './messages.js';
+
+export type { PeerReputationInfo } from './peers.js';
+
 export interface NodeInfo {
   nodeId: string;
   apiVersion: string;

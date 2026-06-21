@@ -166,5 +166,104 @@ export async function getDefaults(nodeId?: string): Promise<Omit<NodeConfig, 'no
         { name: 'relay', timeout: 10000, priority: 4 },
       ],
     },
+
+    // Phase 3 defaults
+    security: {
+      mode: 'adversarial',
+      defaultTrust: false,
+    },
+    cryptography: {
+      keyStorage: {
+        type: 'encrypted-file',
+        path: `./gnn-keys-\${node-id}/`,
+        encryptionAlgorithm: 'aes-256-gcm',
+        encryptionKeyDerivation: 'scrypt',
+        backupEnabled: true,
+        backupPath: `./gnn-keys-\${node-id}-backup/`,
+      },
+      keyRotation: {
+        enabled: true,
+        rotationIntervalDays: 30,
+        rotationInterval: 2592000000,
+        retainOldKeys: 3,
+        retentionDays: 90,
+        gracePeriodDays: 7,
+        gracePeriod: 604800000,
+      },
+      signing: {
+        algorithm: 'Ed25519',
+        hashAlgorithm: 'SHA256',
+      },
+      tls: {
+        minVersion: '1.3',
+        cipherSuites: ['TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256'],
+        mTLS: {
+          enabled: false,
+          mode: 'optional',
+          trustStore: './gnn-ca-certs/',
+        },
+      },
+    },
+    reputation: {
+      enabled: true,
+      initialScore: 50,
+      minScore: 0,
+      maxScore: 100,
+      decayInterval: 86400000,
+      decayRate: 0.95,
+      factors: {
+        validMessageBenefit: 1,
+        invalidMessagePenalty: -5,
+        signatureFailPenalty: -10,
+        spamPenalty: -50,
+        timeoutPenalty: -2,
+        uptimeBonus: 0.5,
+        latencyBonus: {
+          under50ms: 1,
+          under100ms: 0.5,
+          over500ms: -2,
+        },
+      },
+    },
+    blocklist: {
+      enabled: true,
+      types: ['reputation-based', 'manual'],
+      storage: {
+        local: `./gnn-blocklist-\${node-id}.json`,
+      },
+      updateInterval: 3600000,
+    },
+    apiTokens: {
+      rotationEnabled: true,
+      tokenTTL: 7776000000,
+      tokenTTLDays: 90,
+      rotationInterval: 2592000000,
+      rotationIntervalDays: 30,
+      gracePeriod: 604800000,
+      gracePeriodDays: 7,
+      maxTokensKept: 3,
+      hashAlgorithm: 'sha256',
+      tokenLength: 32,
+    },
+    rateLimiting: {
+      enabled: true,
+      perPeer: {
+        messagesPerSecond: 100,
+        queriesPerSecond: 50,
+        connectionAttemptsPerMinute: 10,
+        windowSizeMs: 1000,
+      },
+      global: {
+        messagesPerSecond: 10000,
+        windowSizeMs: 1000,
+      },
+      spam: {
+        duplicateMessageThreshold: 10,
+        duplicateWindowMs: 60000,
+        largePayloadThreshold: 30000,
+        largePayloadPenalty: -20,
+        malformedMessagePenalty: -10,
+      },
+    },
   };
 }

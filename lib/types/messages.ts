@@ -8,6 +8,10 @@ export const PublishedMessageSchema = z.object({
   sender: z.string(),
   timestamp: z.number(),
   ttl: z.number().nullable().optional(),
+  // Phase 3: Cryptographic signing (optional for backward compat)
+  publicKey: z.string().optional(),
+  signature: z.string().optional(),
+  version: z.number().optional(),
 });
 
 export const QueryMessageSchema = z.object({
@@ -21,6 +25,10 @@ export const QueryMessageSchema = z.object({
   sender: z.string(),
   timestamp: z.number(),
   timeout: z.number().optional(),
+  // Phase 3: Cryptographic signing (optional for backward compat)
+  publicKey: z.string().optional(),
+  signature: z.string().optional(),
+  version: z.number().optional(),
 });
 
 export const ResponseMessageSchema = z.object({
@@ -31,6 +39,10 @@ export const ResponseMessageSchema = z.object({
   error: z.string().optional(),
   sender: z.string(),
   timestamp: z.number(),
+  // Phase 3: Cryptographic signing (optional for backward compat)
+  publicKey: z.string().optional(),
+  signature: z.string().optional(),
+  version: z.number().optional(),
 });
 
 export type PublishedMessage = z.infer<typeof PublishedMessageSchema>;
@@ -38,6 +50,18 @@ export type QueryMessage = z.infer<typeof QueryMessageSchema>;
 export type ResponseMessage = z.infer<typeof ResponseMessageSchema>;
 
 export type GNNMessage = PublishedMessage | QueryMessage | ResponseMessage;
+
+// Phase 3: Signed message type (messages with guaranteed signature fields)
+export interface SignedMessageFields {
+  publicKey: string;
+  signature: string;
+  version: 2;
+}
+
+export type SignedPublishedMessage = PublishedMessage & SignedMessageFields;
+export type SignedQueryMessage = QueryMessage & SignedMessageFields;
+export type SignedResponseMessage = ResponseMessage & SignedMessageFields;
+export type SignedGNNMessage = SignedPublishedMessage | SignedQueryMessage | SignedResponseMessage;
 
 export interface BroadcastResponse {
   broadcastId: string;

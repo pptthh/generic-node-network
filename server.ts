@@ -3,7 +3,7 @@ import next from 'next';
 import { parse } from 'url';
 import { v4 as uuidv4 } from 'uuid';
 import { setNodeContext } from './lib/api/handlers.js';
-import { setApiConfig } from './lib/api/middleware.js';
+import { setApiConfig, setTokenManager } from './lib/api/middleware.js';
 import { loadConfig } from './lib/config/loader.js';
 import { GNNNode } from './lib/p2p/node.js';
 import { Database } from './lib/storage/database.js';
@@ -11,6 +11,7 @@ import { initializeDatabase } from './lib/storage/migrations.js';
 import { Schema } from './lib/storage/schema.js';
 import { initLogger, logger } from './lib/utils/logger.js';
 import { WebSocketManager, setWebSocketManager } from './lib/websocket/server.js';
+import { TokenRotationManager } from './lib/security/tokens/rotation.js';
 
 const isDev = process.env.NODE_ENV !== 'production';
 
@@ -35,12 +36,22 @@ async function main() {
 
   logger.info('Database initialized');
 
-  // 4. Initialize P2P node
-  const node = new GNNNode(config);
+  // 4. Initialize P2P node (pass database for Phase 3 security)
+  const node = new GNNNode(config, db);
 
   // 5. Set up context for API routes
   setNodeContext({ node, db, schema, config });
   setApiConfig(config);
+
+  // 5b. Initialize token rotation (Phase 3)
+  let tokenManager: TokenRotationManager | null = null;
+  if (config.apiTokens?.rotationEnabled) {
+    tokenManager = new TokenRotationManager(config.apiTokens, db);
+    await tokenManager.initialize(config.apiToken);
+    tokenManager.startRotationScheduler();
+    setTokenManager(tokenManager);
+    logger.info('Token rotation manager initialized');
+  }
 
   // 6. Set up WebSocket manager
   const wsManager = new WebSocketManager(config);
@@ -157,6 +168,11 @@ async function main() {
   async function shutdown(signal: string) {
     logger.info(`Received ${signal}, shutting down...`);
     clearInterval(maintenanceInterval);
+
+    // Stop Phase 3 token rotation
+    if (tokenManager) {
+      tokenManager.stopRotationScheduler();
+    }
 
     await node.stop();
     await db.close();

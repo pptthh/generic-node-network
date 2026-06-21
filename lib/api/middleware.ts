@@ -1,9 +1,12 @@
 import type { NodeConfig } from '../types/config.js';
+import type { TokenRotationManager } from '../security/tokens/rotation.js';
 import { logger } from '../utils/logger.js';
 
 declare global {
   // eslint-disable-next-line no-var
   var __gnnApiConfig: NodeConfig | undefined;
+  // eslint-disable-next-line no-var
+  var __gnnTokenManager: TokenRotationManager | undefined;
 }
 
 export function setApiConfig(config: NodeConfig): void {
@@ -15,10 +18,37 @@ export function getApiConfig(): NodeConfig {
   return globalThis.__gnnApiConfig;
 }
 
+export function setTokenManager(tokenManager: TokenRotationManager): void {
+  globalThis.__gnnTokenManager = tokenManager;
+}
+
+export function getTokenManager(): TokenRotationManager | undefined {
+  return globalThis.__gnnTokenManager;
+}
+
 export function authenticateRequest(req: Request): boolean {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader?.startsWith('Bearer ')) return false;
   const token = authHeader.slice(7);
+  return token === globalThis.__gnnApiConfig?.apiToken;
+}
+
+/**
+ * Authenticate request using token rotation manager (Phase 3).
+ * Falls back to plain comparison if token rotation is not configured.
+ */
+export async function authenticateRequestAsync(req: Request): Promise<boolean> {
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) return false;
+  const token = authHeader.slice(7);
+
+  // Use token rotation manager if available
+  const tokenManager = globalThis.__gnnTokenManager;
+  if (tokenManager) {
+    return tokenManager.validateToken(token);
+  }
+
+  // Fallback to plain text comparison (backward compat)
   return token === globalThis.__gnnApiConfig?.apiToken;
 }
 
@@ -50,4 +80,23 @@ export function withAuth(
     logger.error('API handler error', err);
     return errorResponse('INTERNAL_ERROR', err.message, 500);
   });
+}
+
+/**
+ * Phase 3: Async auth middleware that supports token rotation.
+ */
+export async function withAuthAsync(
+  req: Request,
+  handler: () => Promise<Response>
+): Promise<Response> {
+  const isAuthenticated = await authenticateRequestAsync(req);
+  if (!isAuthenticated) {
+    return unauthorizedResponse();
+  }
+  try {
+    return await handler();
+  } catch (err: unknown) {
+    logger.error('API handler error', err);
+    return errorResponse('INTERNAL_ERROR', (err as Error).message, 500);
+  }
 }
